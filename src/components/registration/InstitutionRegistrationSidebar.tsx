@@ -18,18 +18,12 @@ const steps = [
   },
   {
     id: 2,
-    title: "Sports & Categories",
-    description: "Select sports and sub-categories",
-    icon: Trophy,
-  },
-  {
-    id: 3,
     title: "Add Students", 
-    description: "Manually add student details",
+    description: "Add students and select sports",
     icon: Users,
   },
   {
-    id: 4,
+    id: 3,
     title: "Payment",
     description: "Review and complete payment",
     icon: CreditCard,

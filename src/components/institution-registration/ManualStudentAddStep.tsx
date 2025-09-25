@@ -25,10 +25,12 @@ interface Student {
   phoneNumber: string;
 }
 
-const genderOptions = ["Male", "Female", "Other"];
+// Gender options will be loaded from API
 
 export const ManualStudentAddStep = ({ initialData, onComplete, onBack }: ManualStudentAddStepProps) => {
   const [students, setStudents] = useState<Student[]>(initialData?.students || []);
+  const [genderOptions, setGenderOptions] = useState<{value: string, label: string}[]>([]);
+  const [loadingGenderOptions, setLoadingGenderOptions] = useState(true);
   const [currentStudent, setCurrentStudent] = useState<Student>({
     firstName: "",
     middleName: "",
@@ -40,6 +42,33 @@ export const ManualStudentAddStep = ({ initialData, onComplete, onBack }: Manual
     phoneNumber: "",
   });
   const [errors, setErrors] = useState<string[]>([]);
+
+  // Load gender options from API
+  useEffect(() => {
+    const loadGenderOptions = async () => {
+      try {
+        const response = await apiService.getGenderOptions();
+        if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+          const responseData = response.data as any;
+          if (responseData.success && responseData.data) {
+            setGenderOptions(responseData.data);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load gender options:", error);
+        // Fallback to default options
+        setGenderOptions([
+          {value: "Male", label: "Male"},
+          {value: "Female", label: "Female"},
+          {value: "Other", label: "Other"}
+        ]);
+      } finally {
+        setLoadingGenderOptions(false);
+      }
+    };
+
+    loadGenderOptions();
+  }, []);
 
   const handleInputChange = (field: keyof Student, value: string) => {
     setCurrentStudent(prev => ({ ...prev, [field]: value }));
@@ -202,9 +231,13 @@ export const ManualStudentAddStep = ({ initialData, onComplete, onBack }: Manual
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
-                  {genderOptions.map((gender) => (
-                    <SelectItem key={gender} value={gender}>{gender}</SelectItem>
-                  ))}
+                  {loadingGenderOptions ? (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  ) : (
+                    genderOptions.map((gender) => (
+                      <SelectItem key={gender.value} value={gender.value}>{gender.label}</SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

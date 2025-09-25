@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CreditCard, Building, Users, Trophy, Calculator, DollarSign, Mail, HandHeart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
 
 interface InstitutionPaymentStepProps {
   institutionData: any;
@@ -16,8 +17,7 @@ interface InstitutionPaymentStepProps {
   loading: boolean;
 }
 
-const FEE_PER_STUDENT = 500;
-const FEE_PER_SPORT = 1000;
+const FEE_PER_SPORT = 1000; // Fallback fee if API fails
 
 export const InstitutionPaymentStep = ({ 
   institutionData, 
@@ -33,37 +33,77 @@ export const InstitutionPaymentStep = ({
     reason: "",
   });
   const [fees, setFees] = useState({
-    studentsFee: 0,
     sportsFee: 0,
     totalFee: 0,
   });
+  const [feeCalculation, setFeeCalculation] = useState<any>(null);
+  const [loadingFees, setLoadingFees] = useState(true);
   const [processing, setProcessing] = useState(false);
 
+  // Calculate fees using API
   useEffect(() => {
-    // Handle new data structure with sportTeams
-    let studentCount = 0;
-    let sportsCount = 0;
-    
-    if (institutionData.sportTeams) {
-      // New structure: sportTeams array
-      studentCount = institutionData.sportTeams.reduce((total: number, team: any) => total + team.students.length, 0);
-      sportsCount = institutionData.sportTeams.length;
-    } else {
-      // Fallback to old structure
-      studentCount = institutionData.students?.length || 0;
-      sportsCount = institutionData.selectedSports?.length || 0;
-    }
-    
-    const studentsFee = studentCount * FEE_PER_STUDENT;
-    const sportsFee = sportsCount * FEE_PER_SPORT;
-    const totalFee = studentsFee + sportsFee;
+    const calculateFees = async () => {
+      try {
+        setLoadingFees(true);
+        
+        // Prepare selected sports data
+        const selectedSports = institutionData.sportTeams?.map((team: any) => ({
+          sport_id: team.sportId || 1 // Use sportId from team or fallback
+        })) || [];
+        
+        // Calculate parent count (assuming 2 parents per institution for now)
+        const parentCount = 2;
+        const baseFee = 1000;
+        
+        if (selectedSports.length > 0) {
+          const response = await apiService.calculateTotalFees({
+            selectedSports,
+            parentCount,
+            baseFee
+          });
+          
+          if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+            const responseData = response.data as any;
+            if (responseData.success && responseData.data) {
+              setFeeCalculation(responseData.data);
+              
+              // Calculate total manually by adding individual fees
+              const sportsFee = responseData.data.summary.sports_fee || 0;
+              const parentFee = responseData.data.summary.parent_fee || 0;
+              const calculatedTotal = sportsFee + parentFee;
+              
+              setFees({
+                sportsFee: sportsFee,
+                totalFee: calculatedTotal,
+              });
+            }
+          }
+        } else {
+          // Fallback calculation if no sports selected
+          const sportsFee = 0;
+          const totalFee = sportsFee;
+          setFees({ sportsFee, totalFee });
+        }
+      } catch (error) {
+        console.error("Failed to calculate fees:", error);
+        // Fallback to hardcoded calculation
+        const sportsCount = institutionData.sportTeams?.length || 0;
+        const sportsFee = sportsCount * FEE_PER_SPORT;
+        const totalFee = sportsFee;
+        setFees({ sportsFee, totalFee });
+        
+        toast({
+          title: "Fee Calculation Warning",
+          description: "Using fallback fee calculation. Please check with support.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingFees(false);
+      }
+    };
 
-    setFees({
-      studentsFee,
-      sportsFee,
-      totalFee,
-    });
-  }, [institutionData]);
+    calculateFees();
+  }, [institutionData, toast]);
 
   const handlePayNow = () => {
     setProcessing(true);
@@ -235,11 +275,7 @@ export const InstitutionPaymentStep = ({
                   </p>
                 ))
               ) : (
-                institutionData.selectedSports?.map((sport: any, index: number) => (
-                  <p key={index} className="text-sm text-muted-foreground">
-                    {sport.sport} - {sport.subCategory}
-                  </p>
-                )) || <p className="text-sm text-muted-foreground">No sports selected</p>
+                <p className="text-sm text-muted-foreground">No sports selected</p>
               )}
             </div>
           </div>
@@ -255,27 +291,57 @@ export const InstitutionPaymentStep = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span>Students Registration Fee ({institutionData.sportTeams 
-                ? institutionData.sportTeams.reduce((total: number, team: any) => total + team.students.length, 0)
-                : institutionData.students?.length || 0
-              } × ₹{FEE_PER_STUDENT}):</span>
-              <span className="font-medium">₹{fees.studentsFee.toLocaleString()}</span>
+          {loadingFees ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                <span className="text-sm text-muted-foreground">Calculating fees...</span>
+              </div>
             </div>
-            
-            <div className="flex justify-between items-center">
-              <span>Sports Registration Fee ({institutionData.sportTeams?.length || institutionData.selectedSports?.length || 0} × ₹{FEE_PER_SPORT}):</span>
-              <span className="font-medium">₹{fees.sportsFee.toLocaleString()}</span>
+          ) : feeCalculation ? (
+            <div className="space-y-3">
+              {/* Sports Fees */}
+              {feeCalculation.breakdown?.sports_fees && feeCalculation.breakdown.sports_fees.length > 0 && (
+                <div className="space-y-2">
+                  {feeCalculation.breakdown.sports_fees.map((sport: any, index: number) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span>{sport.sport_name} ({sport.type}):</span>
+                      <span className="font-medium">₹{(sport.fee || 0).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Parent Fee */}
+              {feeCalculation.breakdown?.parent_fee > 0 && (
+                <div className="flex justify-between items-center">
+                  <span>Parent Pass Fee:</span>
+                  <span className="font-medium">₹{(feeCalculation.breakdown.parent_fee || 0).toLocaleString()}</span>
+                </div>
+              )}
+              
+              <Separator />
+              
+              <div className="flex justify-between items-center text-lg font-bold">
+                <span>Total Amount:</span>
+                <span className="text-primary">₹{fees.totalFee.toLocaleString()}</span>
+              </div>
             </div>
-            
-            <Separator />
-            
-            <div className="flex justify-between items-center text-lg font-bold">
-              <span>Total Amount:</span>
-              <span className="text-primary">₹{fees.totalFee.toLocaleString()}</span>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span>Sports Registration Fee ({institutionData.sportTeams?.length || 0} × ₹{FEE_PER_SPORT}):</span>
+                <span className="font-medium">₹{fees.sportsFee.toLocaleString()}</span>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex justify-between items-center text-lg font-bold">
+                <span>Total Amount:</span>
+                <span className="text-primary">₹{fees.totalFee.toLocaleString()}</span>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

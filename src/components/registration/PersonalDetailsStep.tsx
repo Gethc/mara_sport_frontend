@@ -130,8 +130,11 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
     const loadInstituteTypes = async () => {
       try {
         const response = await apiService.getInstituteTypes();
-        if (response.data.success) {
-          setInstituteTypes(response.data.data);
+        if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+          const responseData = response.data as any;
+          if (responseData.success && responseData.data) {
+            setInstituteTypes(responseData.data);
+          }
         }
       } catch (error) {
         console.error("Failed to load institute types:", error);

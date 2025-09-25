@@ -40,7 +40,7 @@ interface StudentGroup {
   students: Student[];
 }
 
-const genderOptions = ["Male", "Female", "Other"];
+// Gender options will be loaded from API
 
 // Sport data structure
 const sportData = {
@@ -136,6 +136,8 @@ const sportData = {
 
 export const EnhancedManualStudentAddStep = ({ initialData, onComplete, onBack }: EnhancedManualStudentAddStepProps) => {
   const [studentGroups, setStudentGroups] = useState<StudentGroup[]>(initialData?.studentGroups || []);
+  const [genderOptions, setGenderOptions] = useState<{value: string, label: string}[]>([]);
+  const [loadingGenderOptions, setLoadingGenderOptions] = useState(true);
   const [currentGroup, setCurrentGroup] = useState<StudentGroup>({
     id: "",
     sportSelection: {
@@ -161,6 +163,33 @@ export const EnhancedManualStudentAddStep = ({ initialData, onComplete, onBack }
   const [availableSports, setAvailableSports] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [availableSubCategories, setAvailableSubCategories] = useState<string[]>([]);
+
+  // Load gender options from API
+  useEffect(() => {
+    const loadGenderOptions = async () => {
+      try {
+        const response = await apiService.getGenderOptions();
+        if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+          const responseData = response.data as any;
+          if (responseData.success && responseData.data) {
+            setGenderOptions(responseData.data);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load gender options:", error);
+        // Fallback to default options
+        setGenderOptions([
+          {value: "Male", label: "Male"},
+          {value: "Female", label: "Female"},
+          {value: "Other", label: "Other"}
+        ]);
+      } finally {
+        setLoadingGenderOptions(false);
+      }
+    };
+
+    loadGenderOptions();
+  }, []);
 
   // Update available sports when sport type changes
   useEffect(() => {
@@ -581,9 +610,13 @@ export const EnhancedManualStudentAddStep = ({ initialData, onComplete, onBack }
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    {genderOptions.map((gender) => (
-                      <SelectItem key={gender} value={gender}>{gender}</SelectItem>
-                    ))}
+                    {loadingGenderOptions ? (
+                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                    ) : (
+                      genderOptions.map((gender) => (
+                        <SelectItem key={gender.value} value={gender.value}>{gender.label}</SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

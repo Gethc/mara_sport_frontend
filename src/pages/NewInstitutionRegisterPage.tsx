@@ -6,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserTypeSelection } from "@/components/registration/UserTypeSelection";
 import { EmailOtpStep } from "@/components/registration/EmailOtpStep";
 import { InstitutionDetailsStep } from "@/components/institution-registration/InstitutionDetailsStep";
-import { SportsSubCategoriesStep } from "@/components/institution-registration/SportsSubCategoriesStep";
 import { SportStudentAddStep } from "@/components/institution-registration/SportStudentAddStep";
 import { InstitutionPaymentStep } from "@/components/institution-registration/InstitutionPaymentStep";
 import { InstitutionRegistrationSidebar } from "@/components/registration/InstitutionRegistrationSidebar";
@@ -19,7 +18,7 @@ export const NewInstitutionRegisterPage = () => {
   const { toast } = useToast();
   
   // Initialize state from localStorage or defaults
-  const [currentStep, setCurrentStep] = useState<"userType" | "email" | 1 | 2 | 3 | 4>(() => {
+  const [currentStep, setCurrentStep] = useState<"userType" | "email" | 1 | 2 | 3>(() => {
     const savedStep = localStorage.getItem('institution_registration_step');
     const savedEmail = localStorage.getItem('institution_registration_email');
     
@@ -30,8 +29,8 @@ export const NewInstitutionRegisterPage = () => {
         return savedStep;
       } else {
         const stepNumber = parseInt(savedStep);
-        if (stepNumber >= 1 && stepNumber <= 4) {
-          return stepNumber as 1 | 2 | 3 | 4;
+        if (stepNumber >= 1 && stepNumber <= 3) {
+          return stepNumber as 1 | 2 | 3;
         }
       }
     } else if (savedEmail) {
@@ -54,7 +53,6 @@ export const NewInstitutionRegisterPage = () => {
       email: "",
       password: "",
       institutionDetails: null,
-      selectedSports: null,
       students: null,
       payment: null,
     };
@@ -85,8 +83,17 @@ export const NewInstitutionRegisterPage = () => {
               console.log("📥 Checkpoint loaded:", checkpointData);
               
               if (checkpointData.step > 0) {
+                // Map old step numbers to new step numbers
+                let mappedStep = checkpointData.step;
+                if (checkpointData.step === 4) {
+                  mappedStep = 3; // Old step 4 (Payment) becomes new step 3
+                } else if (checkpointData.step === 3) {
+                  mappedStep = 2; // Old step 3 (Add Students) becomes new step 2
+                }
+                // Step 2 (Sports & Categories) is removed, so we skip it
+                
                 // Update state with checkpoint data
-                setCurrentStep(checkpointData.step as 1 | 2 | 3 | 4);
+                setCurrentStep(mappedStep as 1 | 2 | 3);
                 setCompletedSteps(checkpointData.completed_steps || []);
                 setRegistrationData(prev => ({
                   ...prev,
@@ -95,7 +102,7 @@ export const NewInstitutionRegisterPage = () => {
                 
                 toast({
                   title: "Progress Restored! 📋",
-                  description: `Welcome back! We've restored your progress from step ${checkpointData.step}.`,
+                  description: `Welcome back! We've restored your progress from step ${mappedStep}.`,
                 });
               }
             }
@@ -110,7 +117,7 @@ export const NewInstitutionRegisterPage = () => {
     };
 
     loadCheckpointFromServer();
-  }, [registrationData.email, isLoadingCheckpoint, toast]);
+  }, [registrationData.email, toast]); // Removed isLoadingCheckpoint from dependencies
 
   // Auto-save checkpoint to server when step is completed
   const saveCheckpointToServer = async (step: number, data: any) => {
@@ -172,17 +179,16 @@ export const NewInstitutionRegisterPage = () => {
             setRegistrationData(prev => ({
               ...prev,
               institutionDetails: progressData.institution_details || null,
-              selectedSports: progressData.sports_subcategories || null,
               students: progressData.students || null,
               payment: progressData.payment_info || null
             }));
             
-            // Set completed steps based on saved data
+            // Set completed steps based on saved data (mapped to new structure)
             const completedSteps = [];
             if (progressData.institution_details) completedSteps.push(1);
-            if (progressData.sports_subcategories) completedSteps.push(2);
-            if (progressData.students) completedSteps.push(3);
-            if (progressData.payment_info) completedSteps.push(4);
+            // Skip old step 2 (Sports & Categories) as it's now integrated into step 2
+            if (progressData.students) completedSteps.push(2);
+            if (progressData.payment_info) completedSteps.push(3);
             setCompletedSteps(completedSteps);
             console.log("Completed steps set to:", completedSteps);
             }
@@ -196,7 +202,7 @@ export const NewInstitutionRegisterPage = () => {
     };
 
     loadProgress();
-  }, [registrationData.email]); // Keep the dependency but add isLoadingProgress check
+  }, [registrationData.email]); // Removed isLoadingProgress from dependencies to prevent loop
 
   // Save registration progress
   const saveProgress = async (stepData: any, step: number) => {
@@ -208,9 +214,8 @@ export const NewInstitutionRegisterPage = () => {
         current_phase: step,
         completed_phases: completedSteps,
         institution_details: step === 1 ? stepData : registrationData.institutionDetails,
-        sports_subcategories: step === 2 ? stepData : registrationData.selectedSports,
-        students: step === 3 ? stepData : registrationData.students,
-        payment_info: step === 4 ? stepData : registrationData.payment
+        students: step === 2 ? stepData : registrationData.students,
+        payment_info: step === 3 ? stepData : registrationData.payment
       };
 
       await apiService.saveInstitutionRegistrationProgress(progressData);
@@ -245,7 +250,6 @@ export const NewInstitutionRegisterPage = () => {
       email: "",
       password: "",
       institutionDetails: null,
-      selectedSports: null,
       students: null,
       payment: null,
     });
@@ -256,11 +260,8 @@ export const NewInstitutionRegisterPage = () => {
   };
 
   const handleEmailComplete = (email: string) => {
-    console.log("handleEmailComplete called with email:", email);
-    console.log("Current step before update:", currentStep);
     setRegistrationData(prev => ({ ...prev, email }));
     setCurrentStep(1);
-    console.log("Current step set to:", 1);
     toast({
       title: "Email Verified Successfully",
       description: "Please complete your institution details.",
@@ -269,9 +270,8 @@ export const NewInstitutionRegisterPage = () => {
 
   const handleStepComplete = async (step: number, data: any) => {
     const stepKey = step === 1 ? "institutionDetails" :
-                   step === 2 ? "selectedSports" :
-                   step === 3 ? "students" :
-                   step === 4 ? "payment" : null;
+                   step === 2 ? "students" :
+                   step === 3 ? "payment" : null;
 
     if (stepKey) {
       setRegistrationData(prev => ({ 
@@ -299,7 +299,7 @@ export const NewInstitutionRegisterPage = () => {
     await saveCheckpointToServer(step, data);
 
     // Move to next step
-    if (step < 4) {
+    if (step < 3) {
       setCurrentStep((step + 1) as any);
     }
   };
@@ -348,8 +348,7 @@ export const NewInstitutionRegisterPage = () => {
         description: finalData.institutionDetails?.description,
         vision: finalData.institutionDetails?.vision,
         mission: finalData.institutionDetails?.mission,
-        // Sports and students data
-        selectedSports: finalData.selectedSports,
+        // Students data (sports are now included in students data)
         students: finalData.students,
         payment: finalData.payment
       };
@@ -397,25 +396,14 @@ export const NewInstitutionRegisterPage = () => {
     }
   };
 
-  // Debug localStorage state
-  console.log("Current localStorage state:");
-  console.log("- institution_registration_step:", localStorage.getItem('institution_registration_step'));
-  console.log("- institution_registration_email:", localStorage.getItem('institution_registration_email'));
-  console.log("- institution_registration_data:", localStorage.getItem('institution_registration_data'));
-  console.log("Current step:", currentStep, "Type:", typeof currentStep);
-  console.log("Registration data:", registrationData);
 
   if (currentStep === "userType") {
-    console.log("Rendering UserTypeSelection");
     return <UserTypeSelection onTypeSelect={handleUserTypeSelect} />;
   }
 
   if (currentStep === "email") {
-    console.log("Rendering EmailOtpStep");
     return <EmailOtpStep onComplete={handleEmailComplete} onBack={handleEmailBack} userType="institution" purpose="registration" />;
   }
-
-  console.log("Rendering main registration flow with currentStep:", currentStep);
 
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
@@ -443,61 +431,35 @@ export const NewInstitutionRegisterPage = () => {
       <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
           {currentStep === 1 && (
-            <>
-              {console.log("✅ Rendering InstitutionDetailsStep - currentStep === 1 is true")}
-              {console.log("Passing to InstitutionDetailsStep:", {
-                initialData: { 
-                  institutionEmail: registrationData.email,
-                  ...(registrationData.institutionDetails || {})
-                },
-                verificationStatus
-              })}
-              <InstitutionDetailsStep
-                initialData={{ 
-                  institutionEmail: registrationData.email,
-                  ...(registrationData.institutionDetails || {})
-                }}
-                verificationStatus={verificationStatus}
-                onComplete={(data) => handleStepComplete(1, data)}
-                onVerificationChange={setVerificationStatus}
-                onBack={() => handleBack(1)}
-              />
-            </>
-          )}
-          
-          {currentStep !== 1 && (
-            <>
-              {console.log("❌ Not rendering InstitutionDetailsStep - currentStep !== 1")}
-              {console.log("currentStep value:", currentStep, "Type:", typeof currentStep)}
-            </>
+            <InstitutionDetailsStep
+              initialData={{ 
+                institutionEmail: registrationData.email,
+                ...(registrationData.institutionDetails || {})
+              }}
+              verificationStatus={verificationStatus}
+              onComplete={(data) => handleStepComplete(1, data)}
+              onVerificationChange={setVerificationStatus}
+              onBack={() => handleBack(1)}
+            />
           )}
           
           {currentStep === 2 && (
-            <SportsSubCategoriesStep
-              initialData={registrationData.selectedSports}
+            <SportStudentAddStep
+              initialData={registrationData.students}
               onComplete={(data) => handleStepComplete(2, data)}
               onBack={() => handleBack(2)}
             />
           )}
           
           {currentStep === 3 && (
-            <SportStudentAddStep
-              initialData={registrationData.students}
-              onComplete={(data) => handleStepComplete(3, data)}
-              onBack={() => handleBack(3)}
-            />
-          )}
-          
-          {currentStep === 4 && (
             <InstitutionPaymentStep
               institutionData={{
                 ...registrationData.institutionDetails,
-                selectedSports: registrationData.selectedSports?.selectedSports || [],
                 students: registrationData.students?.students || [],
                 sportTeams: registrationData.students?.sportTeams || [],
               }}
               onComplete={handleFinalComplete}
-              onBack={() => handleBack(4)}
+              onBack={() => handleBack(3)}
               loading={false}
             />
           )}

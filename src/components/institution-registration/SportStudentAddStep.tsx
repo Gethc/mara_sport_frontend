@@ -57,11 +57,13 @@ interface SportTeam {
   subCategoryId?: number;
 }
 
-const genderOptions = ["Male", "Female", "Other"];
+// Gender options will be loaded from API
 
 export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportStudentAddStepProps) => {
   const { toast } = useToast();
   const [sportTeams, setSportTeams] = useState<SportTeam[]>(initialData?.sportTeams || []);
+  const [genderOptions, setGenderOptions] = useState<{value: string, label: string}[]>([]);
+  const [loadingGenderOptions, setLoadingGenderOptions] = useState(true);
   
   // State for API data
   const [sports, setSports] = useState<any[]>([]);
@@ -131,6 +133,33 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
     };
 
     fetchSports();
+  }, []);
+
+  // Load gender options from API
+  useEffect(() => {
+    const loadGenderOptions = async () => {
+      try {
+        const response = await apiService.getGenderOptions();
+        if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+          const responseData = response.data as any;
+          if (responseData.success && responseData.data) {
+            setGenderOptions(responseData.data);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load gender options:", error);
+        // Fallback to default options
+        setGenderOptions([
+          {value: "Male", label: "Male"},
+          {value: "Female", label: "Female"},
+          {value: "Other", label: "Other"}
+        ]);
+      } finally {
+        setLoadingGenderOptions(false);
+      }
+    };
+
+    loadGenderOptions();
   }, []);
 
   // Load categories when sport changes
@@ -775,9 +804,13 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    {genderOptions.map((gender) => (
-                      <SelectItem key={gender} value={gender}>{gender}</SelectItem>
-                    ))}
+                    {loadingGenderOptions ? (
+                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                    ) : (
+                      genderOptions.map((gender) => (
+                        <SelectItem key={gender.value} value={gender.value}>{gender.label}</SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -797,7 +830,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
             <div className="flex justify-end">
               <Button 
                 onClick={addStudentToTeam}
-                disabled={!selectedTeamId || !currentStudent.firstName || !currentStudent.lastName || !currentStudent.studentId || !currentStudent.email || !currentStudent.dateOfBirth || !currentStudent.gender || !currentStudent.phoneNumber}
+                disabled={!selectedTeamId || !currentStudent.fname || !currentStudent.lname || !currentStudent.student_id || !currentStudent.email || !currentStudent.dob || !currentStudent.gender || !currentStudent.phone}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Student to Team

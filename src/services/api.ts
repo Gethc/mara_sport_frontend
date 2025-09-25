@@ -933,6 +933,18 @@ class ApiService {
     return this.request('/public/gender-options');
   }
 
+  // Fee Calculation API
+  async calculateTotalFees(data: {
+    selectedSports: { sport_id: number }[];
+    parentCount: number;
+    baseFee: number;
+  }) {
+    return this.request('/fee-calculation/calculate-total-fees', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // OTP Management Methods (Development Only)
   async clearOTPForEmail(email: string) {
     return this.request('/otp/clear', {
