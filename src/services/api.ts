@@ -6,7 +6,7 @@
  * Handles all backend communication
  */
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const API_BASE_URL = 'http://192.168.1.45:8000/api/v1';
 
 interface ApiResponse<T> {
   data: T;
@@ -27,9 +27,12 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-    };
+    const defaultHeaders: Record<string, string> = {};
+
+    // Only set Content-Type for non-FormData requests
+    if (!(options.body instanceof FormData)) {
+      defaultHeaders['Content-Type'] = 'application/json';
+    }
 
     // Add auth token if available
     const token = localStorage.getItem('authToken');
@@ -819,6 +822,11 @@ class ApiService {
     return this.request(`/public/sports/${sportId}/categories/${categoryId}/sub-categories`);
   }
 
+  // Alias for getSubCategoriesPublic to match the expected method name
+  async getSubCategoriesBySport(sportId: number, categoryId: number) {
+    return this.getSubCategoriesPublic(sportId, categoryId);
+  }
+
   // Document Upload APIs
   async uploadDocuments(email: string, studentIdImage?: File, ageProofDocument?: File) {
     const formData = new FormData();
@@ -831,6 +839,7 @@ class ApiService {
       body: formData,
     });
   }
+
 
   async getStudentDocuments(studentId: number) {
     return this.request(`/documents/${studentId}`);
