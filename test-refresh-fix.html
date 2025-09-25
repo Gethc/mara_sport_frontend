@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refresh Fix Test</title>
+</head>
+<body>
+    <h1>Refresh Fix Test</h1>
+    <p>This test verifies that the authentication state persists after page refresh.</p>
+    
+    <div id="test-results">
+        <h2>Test Results:</h2>
+        <ul>
+            <li>1. Open browser dev tools (F12)</li>
+            <li>2. Go to Application/Storage tab</li>
+            <li>3. Navigate to Local Storage</li>
+            <li>4. Add a test student session:</li>
+            <li>   - Key: "student"</li>
+            <li>   - Value: {"id":1,"fname":"Test","lname":"User","email":"test@example.com","fullName":"Test User"}</li>
+            <li>5. Navigate to any protected route (e.g., /dashboard)</li>
+            <li>6. Refresh the page (F5)</li>
+            <li>7. Verify you stay on the same page instead of being redirected to /login</li>
+        </ul>
+        
+        <h3>Expected Behavior:</h3>
+        <p>✅ After refresh, you should remain on the protected page</p>
+        <p>❌ Before fix: You would be redirected to /login</p>
+        
+        <h3>Current localStorage contents:</h3>
+        <div id="localStorage-content"></div>
+        
+        <button onclick="testAuthState()">Test Authentication State</button>
+        <div id="auth-test-result"></div>
+    </div>
+
+    <script>
+        function testAuthState() {
+            const student = localStorage.getItem('student');
+            const authToken = localStorage.getItem('authToken');
+            const adminSession = localStorage.getItem('adminSession');
+            const institutionSession = localStorage.getItem('institutionSession');
+            
+            const result = document.getElementById('auth-test-result');
+            result.innerHTML = `
+                <h4>Authentication State Test:</h4>
+                <p><strong>Student Session:</strong> ${student ? '✅ Present' : '❌ Missing'}</p>
+                <p><strong>Auth Token:</strong> ${authToken ? '✅ Present' : '❌ Missing'}</p>
+                <p><strong>Admin Session:</strong> ${adminSession ? '✅ Present' : '❌ Missing'}</p>
+                <p><strong>Institution Session:</strong> ${institutionSession ? '✅ Present' : '❌ Missing'}</p>
+            `;
+        }
+        
+        function updateLocalStorageContent() {
+            const content = document.getElementById('localStorage-content');
+            const student = localStorage.getItem('student');
+            const authToken = localStorage.getItem('authToken');
+            const adminSession = localStorage.getItem('adminSession');
+            const institutionSession = localStorage.getItem('institutionSession');
+            
+            content.innerHTML = `
+                <p><strong>student:</strong> ${student || 'Not set'}</p>
+                <p><strong>authToken:</strong> ${authToken ? 'Present (' + authToken.substring(0, 20) + '...)' : 'Not set'}</p>
+                <p><strong>adminSession:</strong> ${adminSession || 'Not set'}</p>
+                <p><strong>institutionSession:</strong> ${institutionSession || 'Not set'}</p>
+            `;
+        }
+        
+        // Update localStorage content on page load
+        updateLocalStorageContent();
+        
+        // Update every 2 seconds
+        setInterval(updateLocalStorageContent, 2000);
+    </script>
+</body>
+</html>

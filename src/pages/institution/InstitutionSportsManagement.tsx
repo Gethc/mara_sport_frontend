@@ -1,0 +1,525 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Search, Filter, Plus, Eye, Edit, Users, Trophy, Calendar, MapPin } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
+import AddStudentToSportDialog from "@/components/institution/AddStudentToSportDialog";
+import SportDetailsDialog from "@/components/institution/SportDetailsDialog";
+import EditSportDialog from "@/components/institution/EditSportDialog";
+
+interface Sport {
+  id: string;
+  name: string;
+  type: string;
+  sportType: string;
+  categories: Array<{
+    id: string;
+    name: string;
+    subCategories: Array<{
+      id: string;
+      name: string;
+      gender: string;
+      level: number;
+    }>;
+  }>;
+  enrolledStudents: Array<{
+    id: string;
+    studentId: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    age: number;
+    gender: string;
+    category: string;
+    subCategory: string;
+    ageGroup: string;
+  }>;
+  totalEnrolled: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const InstitutionSportsManagement = () => {
+  const { toast } = useToast();
+  
+  const [sports, setSports] = useState<Sport[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sportTypeFilter, setSportTypeFilter] = useState("all");
+  const [selectedSport, setSelectedSport] = useState<Sport | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showAddStudent, setShowAddStudent] = useState(false);
+
+  useEffect(() => {
+    loadDummyData();
+  }, []);
+
+  const loadDummyData = () => {
+    const dummySports: Sport[] = [
+      {
+        id: "1",
+        name: "Football",
+        type: "Team",
+        sportType: "Team",
+        categories: [
+          {
+            id: "cat1",
+            name: "Men's Football",
+            subCategories: [
+              { id: "sub1", name: "Under-18", gender: "Male", level: 1 },
+              { id: "sub2", name: "Under-21", gender: "Male", level: 2 },
+              { id: "sub3", name: "Senior", gender: "Male", level: 3 }
+            ]
+          },
+          {
+            id: "cat2",
+            name: "Women's Football",
+            subCategories: [
+              { id: "sub4", name: "Under-18", gender: "Female", level: 1 },
+              { id: "sub5", name: "Under-21", gender: "Female", level: 2 },
+              { id: "sub6", name: "Senior", gender: "Female", level: 3 }
+            ]
+          }
+        ],
+        enrolledStudents: [
+          {
+            id: "stu1",
+            studentId: "STU001",
+            firstName: "John",
+            lastName: "Doe",
+            fullName: "John Doe",
+            age: 19,
+            gender: "Male",
+            category: "Men's Football",
+            subCategory: "Under-21",
+            ageGroup: "18-20"
+          },
+          {
+            id: "stu2",
+            studentId: "STU002",
+            firstName: "Jane",
+            lastName: "Smith",
+            fullName: "Jane Smith",
+            age: 17,
+            gender: "Female",
+            category: "Women's Football",
+            subCategory: "Under-18",
+            ageGroup: "15-17"
+          }
+        ],
+        totalEnrolled: 2,
+        createdAt: "2024-01-15T10:00:00Z",
+        updatedAt: "2024-01-20T15:30:00Z"
+      },
+      {
+        id: "2",
+        name: "Basketball",
+        type: "Team",
+        sportType: "Team",
+        categories: [
+          {
+            id: "cat3",
+            name: "Men's Basketball",
+            subCategories: [
+              { id: "sub7", name: "Under-16", gender: "Male", level: 1 },
+              { id: "sub8", name: "Under-19", gender: "Male", level: 2 },
+              { id: "sub9", name: "Senior", gender: "Male", level: 3 }
+            ]
+          },
+          {
+            id: "cat4",
+            name: "Women's Basketball",
+            subCategories: [
+              { id: "sub10", name: "Under-16", gender: "Female", level: 1 },
+              { id: "sub11", name: "Under-19", gender: "Female", level: 2 },
+              { id: "sub12", name: "Senior", gender: "Female", level: 3 }
+            ]
+          }
+        ],
+        enrolledStudents: [
+          {
+            id: "stu3",
+            studentId: "STU003",
+            firstName: "Mike",
+            lastName: "Johnson",
+            fullName: "Mike Johnson",
+            age: 18,
+            gender: "Male",
+            category: "Men's Basketball",
+            subCategory: "Under-19",
+            ageGroup: "18-20"
+          }
+        ],
+        totalEnrolled: 1,
+        createdAt: "2024-01-10T09:00:00Z",
+        updatedAt: "2024-01-18T12:00:00Z"
+      },
+      {
+        id: "3",
+        name: "Tennis",
+        type: "Individual",
+        sportType: "Individual",
+        categories: [
+          {
+            id: "cat5",
+            name: "Singles",
+            subCategories: [
+              { id: "sub13", name: "Men's Singles", gender: "Male", level: 1 },
+              { id: "sub14", name: "Women's Singles", gender: "Female", level: 1 },
+              { id: "sub15", name: "Mixed Singles", gender: "Open", level: 1 }
+            ]
+          },
+          {
+            id: "cat6",
+            name: "Doubles",
+            subCategories: [
+              { id: "sub16", name: "Men's Doubles", gender: "Male", level: 2 },
+              { id: "sub17", name: "Women's Doubles", gender: "Female", level: 2 },
+              { id: "sub18", name: "Mixed Doubles", gender: "Open", level: 2 }
+            ]
+          }
+        ],
+        enrolledStudents: [
+          {
+            id: "stu4",
+            studentId: "STU004",
+            firstName: "Sarah",
+            lastName: "Wilson",
+            fullName: "Sarah Wilson",
+            age: 20,
+            gender: "Female",
+            category: "Singles",
+            subCategory: "Women's Singles",
+            ageGroup: "18-20"
+          },
+          {
+            id: "stu5",
+            studentId: "STU005",
+            firstName: "David",
+            lastName: "Brown",
+            fullName: "David Brown",
+            age: 22,
+            gender: "Male",
+            category: "Singles",
+            subCategory: "Men's Singles",
+            ageGroup: "21-23"
+          }
+        ],
+        totalEnrolled: 2,
+        createdAt: "2024-01-05T08:00:00Z",
+        updatedAt: "2024-01-22T14:00:00Z"
+      },
+      {
+        id: "4",
+        name: "Swimming",
+        type: "Individual",
+        sportType: "Individual",
+        categories: [
+          {
+            id: "cat7",
+            name: "Freestyle",
+            subCategories: [
+              { id: "sub19", name: "50m Freestyle", gender: "Open", level: 1 },
+              { id: "sub20", name: "100m Freestyle", gender: "Open", level: 2 },
+              { id: "sub21", name: "200m Freestyle", gender: "Open", level: 3 }
+            ]
+          },
+          {
+            id: "cat8",
+            name: "Backstroke",
+            subCategories: [
+              { id: "sub22", name: "50m Backstroke", gender: "Open", level: 1 },
+              { id: "sub23", name: "100m Backstroke", gender: "Open", level: 2 }
+            ]
+          }
+        ],
+        enrolledStudents: [],
+        totalEnrolled: 0,
+        createdAt: "2024-01-12T11:00:00Z",
+        updatedAt: "2024-01-12T11:00:00Z"
+      }
+    ];
+    
+    setSports(dummySports);
+  };
+
+  const fetchSports = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getInstitutionSports();
+      setSports(response.data || []);
+    } catch (error) {
+      console.error("Error fetching sports:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch sports data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredSports = sports.filter(sport => {
+    const matchesSearch = sport.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = sportTypeFilter === "all" || sport.type === sportTypeFilter;
+    return matchesSearch && matchesType;
+  });
+
+  const handleViewDetails = (sport: Sport) => {
+    setSelectedSport(sport);
+    setShowDetails(true);
+  };
+
+  const handleEditSport = (sport: Sport) => {
+    setSelectedSport(sport);
+    setShowEdit(true);
+  };
+
+  const handleAddStudentToSport = (sport: Sport) => {
+    setSelectedSport(sport);
+    setShowAddStudent(true);
+  };
+
+  const getSportTypeColor = (type: string) => {
+    switch (type) {
+      case "Individual": return "bg-blue-100 text-blue-800";
+      case "Team": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getEnrollmentStatus = (count: number) => {
+    if (count === 0) return { text: "No enrollments", color: "text-red-600" };
+    if (count < 5) return { text: "Low enrollment", color: "text-yellow-600" };
+    if (count < 20) return { text: "Good enrollment", color: "text-blue-600" };
+    return { text: "High enrollment", color: "text-green-600" };
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading sports...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Sports Management</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            Manage and view sports with enrolled students
+          </p>
+        </div>
+        <Button 
+          onClick={() => setShowAddStudent(true)}
+          className="w-full sm:w-auto"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Student to Sport
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Search Sports</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by sport name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Sport Type</label>
+              <Select value={sportTypeFilter} onValueChange={setSportTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Individual">Individual</SelectItem>
+                  <SelectItem value="Team">Team</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <label className="text-sm font-medium">Total Sports</label>
+              <div className="text-2xl font-bold text-primary">
+                {filteredSports.length}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sports List */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+        {filteredSports.map((sport) => {
+          const enrollmentStatus = getEnrollmentStatus(sport.totalEnrolled);
+          return (
+            <Card key={sport.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <CardTitle className="text-base sm:text-lg truncate">{sport.name}</CardTitle>
+                    <Badge className={`${getSportTypeColor(sport.type)} text-xs`}>
+                      {sport.type}
+                    </Badge>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewDetails(sport)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditSport(sport)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Categories */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Categories</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {sport.categories.slice(0, 2).map((category) => (
+                      <Badge key={category.id} variant="outline" className="text-xs">
+                        {category.name}
+                      </Badge>
+                    ))}
+                    {sport.categories.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{sport.categories.length - 2} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Enrolled Students */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Enrolled Students</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold">{sport.totalEnrolled}</span>
+                    <span className={`text-sm ${enrollmentStatus.color}`}>
+                      {enrollmentStatus.text}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleAddStudentToSport(sport)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Student
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleViewDetails(sport)}
+                    className="flex-1 sm:flex-none"
+                  >
+                    View Details
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* No Results */}
+      {filteredSports.length === 0 && (
+        <Card>
+          <CardContent className="text-center py-8">
+            <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Sports Found</h3>
+            <p className="text-muted-foreground">
+              {searchTerm || sportTypeFilter !== "all"
+                ? "Try adjusting your filters to see more results."
+                : "No sports have been enrolled yet."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sport Details Dialog */}
+      {showDetails && selectedSport && (
+        <SportDetailsDialog
+          sport={selectedSport}
+          onClose={() => setShowDetails(false)}
+          onEdit={() => {
+            setShowDetails(false);
+            setShowEdit(true);
+          }}
+          onAddStudent={() => {
+            setShowDetails(false);
+            setShowAddStudent(true);
+          }}
+        />
+      )}
+
+      {/* Edit Sport Dialog */}
+      {showEdit && selectedSport && (
+        <EditSportDialog
+          sport={selectedSport}
+          onClose={() => setShowEdit(false)}
+          onSave={fetchSports}
+        />
+      )}
+
+      {/* Add Student to Sport Dialog */}
+      {showAddStudent && (
+        <AddStudentToSportDialog
+          onClose={() => setShowAddStudent(false)}
+          onSave={fetchSports}
+        />
+      )}
+
+    </div>
+  );
+};
+
+export default InstitutionSportsManagement;
