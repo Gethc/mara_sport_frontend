@@ -126,6 +126,12 @@ export const NewInstitutionRegisterPage = () => {
         console.log("💾 Saving checkpoint to server for step:", step);
         await apiService.saveRegistrationCheckpoint(registrationData.email, step, data);
         console.log("✅ Checkpoint saved successfully");
+        
+        // Show success message to user
+        toast({
+          title: "Progress Saved ✅",
+          description: `Your progress for step ${step} has been saved successfully.`,
+        });
       } catch (error) {
         console.error("❌ Failed to save checkpoint:", error);
         // Don't show error to user, localStorage backup is still working
@@ -170,27 +176,53 @@ export const NewInstitutionRegisterPage = () => {
       if (registrationData.email && !isLoadingProgress) {
         setIsLoadingProgress(true);
         try {
-          const response = await apiService.getInstitutionRegistrationProgress(registrationData.email);
-          if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
-            const responseData = response.data as any;
-            if (responseData.success && responseData.data) {
-              const progressData = responseData.data;
-              console.log("Loading progress data:", progressData);
-            setRegistrationData(prev => ({
-              ...prev,
-              institutionDetails: progressData.institution_details || null,
-              students: progressData.students || null,
-              payment: progressData.payment_info || null
-            }));
+          // First try to load checkpoint data
+          const checkpointResponse = await apiService.loadRegistrationCheckpoint(registrationData.email);
+          if (checkpointResponse.data && typeof checkpointResponse.data === 'object' && 'success' in checkpointResponse.data && checkpointResponse.data.success) {
+            const checkpointData = checkpointResponse.data.data;
+            console.log("Loading checkpoint data:", checkpointData);
             
-            // Set completed steps based on saved data (mapped to new structure)
-            const completedSteps = [];
-            if (progressData.institution_details) completedSteps.push(1);
-            // Skip old step 2 (Sports & Categories) as it's now integrated into step 2
-            if (progressData.students) completedSteps.push(2);
-            if (progressData.payment_info) completedSteps.push(3);
-            setCompletedSteps(completedSteps);
-            console.log("Completed steps set to:", completedSteps);
+            // Update current step based on checkpoint
+            if (checkpointData.step > 0) {
+              setCurrentStep(checkpointData.step as any);
+            }
+            
+            // Update completed steps
+            if (checkpointData.completed_steps && Array.isArray(checkpointData.completed_steps)) {
+              setCompletedSteps(checkpointData.completed_steps);
+            }
+            
+            // Update registration data with checkpoint data
+            if (checkpointData.data) {
+              setRegistrationData(prev => ({
+                ...prev,
+                ...checkpointData.data
+              }));
+            }
+          } else {
+            // Fallback to old progress loading
+            const response = await apiService.getInstitutionRegistrationProgress(registrationData.email);
+            if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
+              const responseData = response.data as any;
+              if (responseData.success && responseData.data) {
+                const progressData = responseData.data;
+                console.log("Loading progress data:", progressData);
+                setRegistrationData(prev => ({
+                  ...prev,
+                  institutionDetails: progressData.institution_details || null,
+                  students: progressData.students || null,
+                  payment: progressData.payment_info || null
+                }));
+                
+                // Set completed steps based on saved data (mapped to new structure)
+                const completedSteps = [];
+                if (progressData.institution_details) completedSteps.push(1);
+                // Skip old step 2 (Sports & Categories) as it's now integrated into step 2
+                if (progressData.students) completedSteps.push(2);
+                if (progressData.payment_info) completedSteps.push(3);
+                setCompletedSteps(completedSteps);
+                console.log("Completed steps set to:", completedSteps);
+              }
             }
           }
         } catch (error) {
@@ -295,8 +327,12 @@ export const NewInstitutionRegisterPage = () => {
     // Save progress to database
     await saveProgress(data, step);
     
-    // Save checkpoint to server
-    await saveCheckpointToServer(step, data);
+    // Save checkpoint to server with complete registration data
+    const completeData = {
+      ...registrationData,
+      [stepKey]: data
+    };
+    await saveCheckpointToServer(step, completeData);
 
     // Move to next step
     if (step < 3) {

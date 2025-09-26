@@ -49,16 +49,28 @@ const InstitutionDashboard = () => {
   // Fetch students data
   const fetchStudents = async () => {
     try {
-      const response = await apiService.getAdminStudents({
+      const response = await apiService.getInstitutionStudents({
         search: searchTerm || undefined,
-        status: filterStatus !== "all" ? filterStatus : undefined,
+        payment_status: filterStatus !== "all" ? filterStatus : undefined,
       });
       
-      // Type guard to ensure response.data is an array
-      const studentsData = Array.isArray(response.data) ? response.data : [];
-      setStudents(studentsData);
+      // Handle institution API response format
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          const studentsData = data.data.students || [];
+          setStudents(studentsData);
+        } else {
+          setStudents([]);
+        }
+      } else {
+        // Fallback for direct array response
+        const studentsData = Array.isArray(response.data) ? response.data : [];
+        setStudents(studentsData);
+      }
       
-      // Calculate stats
+      // Calculate stats from the students data
+      const studentsData = students;
       const totalStudents = studentsData.length;
       const paidStudents = studentsData.filter((student: any) => student.payment_status === 'Paid').length;
       const unpaidStudents = totalStudents - paidStudents;

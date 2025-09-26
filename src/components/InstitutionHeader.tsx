@@ -20,16 +20,11 @@ export function InstitutionHeader() {
   const handleLogout = async () => {
     try {
       await logout();
-      // Clear institution session
-      localStorage.removeItem('institutionSession');
       // Navigate to login page
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if logout fails, clear local data and redirect
-      localStorage.removeItem('institutionSession');
-      localStorage.removeItem('student');
-      localStorage.removeItem('authToken');
+      // Even if logout fails, redirect to login
       navigate('/login');
     }
   };

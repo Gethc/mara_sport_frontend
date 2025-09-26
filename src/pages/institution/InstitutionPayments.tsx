@@ -62,20 +62,33 @@ const InstitutionPayments = () => {
   // Fetch students data
   const fetchStudents = async () => {
     try {
-      const response = await apiService.getAdminStudents({
+      const response = await apiService.getInstitutionStudents({
         search: searchTerm || undefined,
-        status: filterStatus !== "all" ? filterStatus : undefined,
+        payment_status: filterStatus !== "all" ? filterStatus : undefined,
       });
       
-      setStudents(response.data || []);
+      // Handle institution API response format
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          const studentsData = data.data.students || [];
+          setStudents(studentsData);
+        } else {
+          setStudents([]);
+        }
+      } else {
+        // Fallback for direct array response
+        setStudents(response.data || []);
+      }
       
-      // Calculate stats
-      const totalStudents = response.data?.length || 0;
-      const paidStudents = response.data?.filter((student: any) => student.payment_status === 'Paid').length || 0;
+      // Calculate stats from the students data
+      const studentsData = students;
+      const totalStudents = studentsData.length;
+      const paidStudents = studentsData.filter((student: any) => student.payment_status === 'Paid').length;
       const unpaidStudents = totalStudents - paidStudents;
-      const totalAmount = response.data?.reduce((sum: number, student: any) => sum + (student.total_amount || 0), 0) || 0;
-      const paidAmount = response.data?.filter((student: any) => student.payment_status === 'Paid')
-        .reduce((sum: number, student: any) => sum + (student.paid_amount || 0), 0) || 0;
+      const totalAmount = studentsData.reduce((sum: number, student: any) => sum + (student.total_amount || 0), 0);
+      const paidAmount = studentsData.filter((student: any) => student.payment_status === 'Paid')
+        .reduce((sum: number, student: any) => sum + (student.paid_amount || 0), 0);
       const pendingAmount = totalAmount - paidAmount;
       
       setStats({

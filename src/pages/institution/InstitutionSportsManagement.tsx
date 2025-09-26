@@ -58,203 +58,30 @@ const InstitutionSportsManagement = () => {
   const [showAddStudent, setShowAddStudent] = useState(false);
 
   useEffect(() => {
-    loadDummyData();
-  }, []);
+    fetchSports();
+  }, [sportTypeFilter]);
 
-  const loadDummyData = () => {
-    const dummySports: Sport[] = [
-      {
-        id: "1",
-        name: "Football",
-        type: "Team",
-        sportType: "Team",
-        categories: [
-          {
-            id: "cat1",
-            name: "Men's Football",
-            subCategories: [
-              { id: "sub1", name: "Under-18", gender: "Male", level: 1 },
-              { id: "sub2", name: "Under-21", gender: "Male", level: 2 },
-              { id: "sub3", name: "Senior", gender: "Male", level: 3 }
-            ]
-          },
-          {
-            id: "cat2",
-            name: "Women's Football",
-            subCategories: [
-              { id: "sub4", name: "Under-18", gender: "Female", level: 1 },
-              { id: "sub5", name: "Under-21", gender: "Female", level: 2 },
-              { id: "sub6", name: "Senior", gender: "Female", level: 3 }
-            ]
-          }
-        ],
-        enrolledStudents: [
-          {
-            id: "stu1",
-            studentId: "STU001",
-            firstName: "John",
-            lastName: "Doe",
-            fullName: "John Doe",
-            age: 19,
-            gender: "Male",
-            category: "Men's Football",
-            subCategory: "Under-21",
-            ageGroup: "18-20"
-          },
-          {
-            id: "stu2",
-            studentId: "STU002",
-            firstName: "Jane",
-            lastName: "Smith",
-            fullName: "Jane Smith",
-            age: 17,
-            gender: "Female",
-            category: "Women's Football",
-            subCategory: "Under-18",
-            ageGroup: "15-17"
-          }
-        ],
-        totalEnrolled: 2,
-        createdAt: "2024-01-15T10:00:00Z",
-        updatedAt: "2024-01-20T15:30:00Z"
-      },
-      {
-        id: "2",
-        name: "Basketball",
-        type: "Team",
-        sportType: "Team",
-        categories: [
-          {
-            id: "cat3",
-            name: "Men's Basketball",
-            subCategories: [
-              { id: "sub7", name: "Under-16", gender: "Male", level: 1 },
-              { id: "sub8", name: "Under-19", gender: "Male", level: 2 },
-              { id: "sub9", name: "Senior", gender: "Male", level: 3 }
-            ]
-          },
-          {
-            id: "cat4",
-            name: "Women's Basketball",
-            subCategories: [
-              { id: "sub10", name: "Under-16", gender: "Female", level: 1 },
-              { id: "sub11", name: "Under-19", gender: "Female", level: 2 },
-              { id: "sub12", name: "Senior", gender: "Female", level: 3 }
-            ]
-          }
-        ],
-        enrolledStudents: [
-          {
-            id: "stu3",
-            studentId: "STU003",
-            firstName: "Mike",
-            lastName: "Johnson",
-            fullName: "Mike Johnson",
-            age: 18,
-            gender: "Male",
-            category: "Men's Basketball",
-            subCategory: "Under-19",
-            ageGroup: "18-20"
-          }
-        ],
-        totalEnrolled: 1,
-        createdAt: "2024-01-10T09:00:00Z",
-        updatedAt: "2024-01-18T12:00:00Z"
-      },
-      {
-        id: "3",
-        name: "Tennis",
-        type: "Individual",
-        sportType: "Individual",
-        categories: [
-          {
-            id: "cat5",
-            name: "Singles",
-            subCategories: [
-              { id: "sub13", name: "Men's Singles", gender: "Male", level: 1 },
-              { id: "sub14", name: "Women's Singles", gender: "Female", level: 1 },
-              { id: "sub15", name: "Mixed Singles", gender: "Open", level: 1 }
-            ]
-          },
-          {
-            id: "cat6",
-            name: "Doubles",
-            subCategories: [
-              { id: "sub16", name: "Men's Doubles", gender: "Male", level: 2 },
-              { id: "sub17", name: "Women's Doubles", gender: "Female", level: 2 },
-              { id: "sub18", name: "Mixed Doubles", gender: "Open", level: 2 }
-            ]
-          }
-        ],
-        enrolledStudents: [
-          {
-            id: "stu4",
-            studentId: "STU004",
-            firstName: "Sarah",
-            lastName: "Wilson",
-            fullName: "Sarah Wilson",
-            age: 20,
-            gender: "Female",
-            category: "Singles",
-            subCategory: "Women's Singles",
-            ageGroup: "18-20"
-          },
-          {
-            id: "stu5",
-            studentId: "STU005",
-            firstName: "David",
-            lastName: "Brown",
-            fullName: "David Brown",
-            age: 22,
-            gender: "Male",
-            category: "Singles",
-            subCategory: "Men's Singles",
-            ageGroup: "21-23"
-          }
-        ],
-        totalEnrolled: 2,
-        createdAt: "2024-01-05T08:00:00Z",
-        updatedAt: "2024-01-22T14:00:00Z"
-      },
-      {
-        id: "4",
-        name: "Swimming",
-        type: "Individual",
-        sportType: "Individual",
-        categories: [
-          {
-            id: "cat7",
-            name: "Freestyle",
-            subCategories: [
-              { id: "sub19", name: "50m Freestyle", gender: "Open", level: 1 },
-              { id: "sub20", name: "100m Freestyle", gender: "Open", level: 2 },
-              { id: "sub21", name: "200m Freestyle", gender: "Open", level: 3 }
-            ]
-          },
-          {
-            id: "cat8",
-            name: "Backstroke",
-            subCategories: [
-              { id: "sub22", name: "50m Backstroke", gender: "Open", level: 1 },
-              { id: "sub23", name: "100m Backstroke", gender: "Open", level: 2 }
-            ]
-          }
-        ],
-        enrolledStudents: [],
-        totalEnrolled: 0,
-        createdAt: "2024-01-12T11:00:00Z",
-        updatedAt: "2024-01-12T11:00:00Z"
-      }
-    ];
-    
-    setSports(dummySports);
-  };
 
   const fetchSports = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getInstitutionSports();
-      setSports(response.data || []);
+      const response = await apiService.getInstitutionSports({
+        sport_type: sportTypeFilter !== "all" ? sportTypeFilter : undefined
+      });
+      
+      // Handle institution API response format
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          const sportsData = data.data.sports || [];
+          setSports(sportsData);
+        } else {
+          setSports([]);
+        }
+      } else {
+        // Fallback for direct array response
+        setSports(response.data || []);
+      }
     } catch (error) {
       console.error("Error fetching sports:", error);
       toast({
@@ -262,6 +89,7 @@ const InstitutionSportsManagement = () => {
         description: "Failed to fetch sports data",
         variant: "destructive",
       });
+      setSports([]);
     } finally {
       setLoading(false);
     }

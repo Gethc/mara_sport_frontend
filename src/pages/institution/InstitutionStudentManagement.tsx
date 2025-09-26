@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
 import { 
   UserPlus, 
   Upload, 
@@ -44,22 +45,70 @@ const InstitutionStudentManagement = () => {
     subCategory: "",
   });
 
-  const [sportsOptions] = useState<{[k:string]: string[]}>({
-    Football: ["U14 Boys", "U16 Boys", "U18 Girls"],
-    Basketball: ["U16 Boys", "U16 Girls"],
-    Tennis: ["Singles U14", "Singles U16", "Doubles U18"],
-    Swimming: ["50m Freestyle", "100m Backstroke"],
-    Athletics: ["100m", "200m", "Hurdles"],
-    Badminton: ["Singles", "Doubles"],
-  });
+  const [sportsOptions, setSportsOptions] = useState<{[k:string]: string[]}>({});
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock student data
-  const students = [
-    { id: 1, name: "John Smith", age: 19, gender: "Male", email: "john@example.com", phone: "9876543210", studentId: "ST001", sports: ["Football", "Tennis"], status: "Active" },
-    { id: 2, name: "Sarah Davis", age: 18, gender: "Female", email: "sarah@example.com", phone: "9876543211", studentId: "ST002", sports: ["Basketball"], status: "Active" },
-    { id: 3, name: "Mike Johnson", age: 20, gender: "Male", email: "mike@example.com", phone: "9876543212", studentId: "ST003", sports: ["Swimming", "Athletics"], status: "Pending" },
-    { id: 4, name: "Emily Brown", age: 19, gender: "Female", email: "emily@example.com", phone: "9876543213", studentId: "ST004", sports: ["Tennis"], status: "Active" },
-  ];
+  // Fetch students and sports data
+  useEffect(() => {
+    fetchStudents();
+    fetchSportsOptions();
+  }, [searchTerm, filterSport]);
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getInstitutionStudents({
+        search: searchTerm || undefined
+      });
+      
+      // Handle institution API response format
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          const studentsData = data.data.students || [];
+          setStudents(studentsData);
+        } else {
+          setStudents([]);
+        }
+      } else {
+        setStudents([]);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      setStudents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSportsOptions = async () => {
+    try {
+      const response = await apiService.getAvailableSports();
+      
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          const sportsData = data.data || [];
+          const sportsOptionsMap: {[k:string]: string[]} = {};
+          
+          sportsData.forEach((sport: any) => {
+            const subCategories: string[] = [];
+            sport.categories?.forEach((category: any) => {
+              category.subCategories?.forEach((sub: any) => {
+                subCategories.push(sub.name);
+              });
+            });
+            sportsOptionsMap[sport.name] = subCategories;
+          });
+          
+          setSportsOptions(sportsOptionsMap);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching sports options:', error);
+    }
+  };
 
   const handleAddStudent = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,8 +141,8 @@ const InstitutionStudentManagement = () => {
 
 
   const filteredStudents = students.filter(student => 
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (filterSport === "all" || filterSport === "" || student.sports.some(sport => sport.toLowerCase().includes(filterSport.toLowerCase())))
+    student.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (filterSport === "all" || filterSport === "" || student.sports?.some((sport: string) => sport.toLowerCase().includes(filterSport.toLowerCase())))
   );
 
   return (

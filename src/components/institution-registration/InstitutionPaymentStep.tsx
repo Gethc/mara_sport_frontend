@@ -46,20 +46,12 @@ export const InstitutionPaymentStep = ({
       try {
         setLoadingFees(true);
         
-        // Prepare selected sports data
-        const selectedSports = institutionData.sportTeams?.map((team: any) => ({
-          sport_id: team.sportId || 1 // Use sportId from team or fallback
-        })) || [];
+        // Prepare sport teams data for institution fee calculation
+        const sportTeams = institutionData.sportTeams || [];
         
-        // Calculate parent count (assuming 2 parents per institution for now)
-        const parentCount = 2;
-        const baseFee = 1000;
-        
-        if (selectedSports.length > 0) {
-          const response = await apiService.calculateTotalFees({
-            selectedSports,
-            parentCount,
-            baseFee
+        if (sportTeams.length > 0) {
+          const response = await apiService.calculateInstitutionFees({
+            sportTeams
           });
           
           if (response.data && typeof response.data === 'object' && 'success' in response.data) {
@@ -67,14 +59,13 @@ export const InstitutionPaymentStep = ({
             if (responseData.success && responseData.data) {
               setFeeCalculation(responseData.data);
               
-              // Calculate total manually by adding individual fees
+              // Calculate total from institution fees (sports fees only)
               const sportsFee = responseData.data.summary.sports_fee || 0;
-              const parentFee = responseData.data.summary.parent_fee || 0;
-              const calculatedTotal = sportsFee + parentFee;
+              const totalFee = responseData.data.summary.total_amount || sportsFee;
               
               setFees({
                 sportsFee: sportsFee,
-                totalFee: calculatedTotal,
+                totalFee: totalFee,
               });
             }
           }
@@ -105,25 +96,47 @@ export const InstitutionPaymentStep = ({
     calculateFees();
   }, [institutionData, toast]);
 
-  const handlePayNow = () => {
+  const handlePayNow = async () => {
     setProcessing(true);
-    // Simulate payment gateway redirect
-    setTimeout(() => {
+    try {
+      // Create payment request in database
+      const paymentData = {
+        institute_id: institutionData.instituteId || 1, // You'll need to pass this from parent
+        amount: fees.totalFee,
+        payment_type: "pay_now"
+      };
+
+      const response = await apiService.createInstitutePaymentRequest(paymentData);
+      
+      if (response.data && response.data.success) {
+        toast({
+          title: "Payment Request Created ✅",
+          description: "Your payment request has been recorded. Admin will review it.",
+        });
+        
+        onComplete({
+          paymentType: "payNow",
+          totalFees: fees.totalFee,
+          sportsFee: fees.sportsFee,
+          status: "payment_pending",
+          paymentId: response.data.data.payment_id
+        });
+      } else {
+        throw new Error("Failed to create payment request");
+      }
+    } catch (error) {
+      console.error("Payment request failed:", error);
       toast({
-        title: "Redirecting to Payment Gateway",
-        description: "Please complete your payment to finish registration.",
+        title: "Payment Request Failed",
+        description: "Failed to create payment request. Please try again.",
+        variant: "destructive",
       });
-      onComplete({
-        paymentType: "payNow",
-        totalFees: fees.totalFee,
-        studentsFee: fees.studentsFee,
-        sportsFee: fees.sportsFee,
-        status: "payment_pending"
-      });
-    }, 1000);
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const handleSponsorRequest = () => {
+  const handleSponsorRequest = async () => {
     if (!sponsorData.requestedAmount || !sponsorData.sponsorshipType || !sponsorData.reason) {
       toast({
         title: "Missing Information",
@@ -133,41 +146,134 @@ export const InstitutionPaymentStep = ({
       return;
     }
 
-    setProcessing(true);
-    setTimeout(() => {
+    // Validate requested amount (should not exceed total fee)
+    const requestedAmount = parseFloat(sponsorData.requestedAmount);
+    if (requestedAmount > fees.totalFee) {
       toast({
-        title: "Sponsorship Request Submitted",
-        description: "Your account has been created. We'll review your sponsorship request.",
+        title: "Invalid Amount",
+        description: "Requested amount cannot exceed total fee.",
+        variant: "destructive"
       });
-      onComplete({
-        paymentType: "sponsor",
-        sponsorshipData: sponsorData,
-        totalFees: fees.totalFee,
-        status: "sponsorship_requested",
-        accountCreated: true
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      // Create sponsorship request in database
+      const sponsorshipData = {
+        institute_id: institutionData.instituteId || 1, // You'll need to pass this from parent
+        requested_amount: requestedAmount,
+        sponsorship_type: sponsorData.sponsorshipType,
+        reason: sponsorData.reason
+      };
+
+      const response = await apiService.createSponsorshipRequest(sponsorshipData);
+      
+      if (response.data && response.data.success) {
+        toast({
+          title: "Sponsorship Request Submitted ✅",
+          description: "Your sponsorship request has been recorded. Admin will review it.",
+        });
+        
+        onComplete({
+          paymentType: "sponsor",
+          sponsorshipData: sponsorData,
+          totalFees: fees.totalFee,
+          status: "sponsorship_requested",
+          sponsorshipId: response.data.data.sponsorship_id
+        });
+      } else {
+        throw new Error("Failed to create sponsorship request");
+      }
+    } catch (error) {
+      console.error("Sponsorship request failed:", error);
+      toast({
+        title: "Sponsorship Request Failed",
+        description: "Failed to create sponsorship request. Please try again.",
+        variant: "destructive",
       });
-    }, 1000);
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const handlePayByStudent = () => {
+  const handlePayByStudent = async () => {
     setProcessing(true);
-    setTimeout(() => {
+    try {
+      // First create student records
+      const studentsData = {
+        institute_id: institutionData.instituteId || 1, // You'll need to pass this from parent
+        students: []
+      };
+
+      // Extract students from sport teams
+      if (institutionData.sportTeams) {
+        for (const team of institutionData.sportTeams) {
+          for (const student of team.students || []) {
+            studentsData.students.push({
+              fname: student.fname || student.firstName,
+              mname: student.mname || student.middleName,
+              lname: student.lname || student.lastName,
+              email: student.email,
+              student_id: student.student_id || student.studentId,
+              dob: student.dob || student.dateOfBirth,
+              gender: student.gender,
+              phone: student.phone || student.phoneNumber
+            });
+          }
+        }
+      }
+
+      // Create students
+      const studentsResponse = await apiService.createStudentsFromInstitution(studentsData);
+      
+      if (studentsResponse.data && studentsResponse.data.success) {
+        // Now create payment requests for students
+        const studentPaymentData = {
+          institute_id: institutionData.instituteId || 1,
+          students: studentsResponse.data.data.students.map((student: any) => ({
+            student_id: student.student_id,
+            email: student.email,
+            name: student.name,
+            sport: "Multiple Sports", // You might want to specify which sport
+            amount: Math.ceil(fees.totalFee / studentsData.students.length) // Divide total fee among students
+          })),
+          total_amount: fees.totalFee
+        };
+
+        const paymentResponse = await apiService.createStudentPaymentRequests(studentPaymentData);
+        
+        if (paymentResponse.data && paymentResponse.data.success) {
+          toast({
+            title: "Students Created & Payment Instructions Sent ✅",
+            description: `Payment emails have been sent to ${paymentResponse.data.data.total_requests} students.`,
+          });
+          
+          onComplete({
+            paymentType: "payByStudent",
+            totalFees: fees.totalFee,
+            sportsFee: fees.sportsFee,
+            emailsSent: paymentResponse.data.data.total_requests,
+            status: "payment_emails_sent",
+            studentsCreated: studentsResponse.data.data.total_students,
+            paymentRequestsCreated: paymentResponse.data.data.total_requests
+          });
+        } else {
+          throw new Error("Failed to create payment requests");
+        }
+      } else {
+        throw new Error("Failed to create students");
+      }
+    } catch (error) {
+      console.error("Pay by student failed:", error);
       toast({
-        title: "Payment Instructions Sent",
-        description: "Payment emails have been sent to all registered students.",
+        title: "Pay by Student Failed",
+        description: "Failed to create students and send payment instructions. Please try again.",
+        variant: "destructive",
       });
-      onComplete({
-        paymentType: "payByStudent",
-        totalFees: fees.totalFee,
-        studentsFee: fees.studentsFee,
-        sportsFee: fees.sportsFee,
-        emailsSent: institutionData.sportTeams 
-          ? institutionData.sportTeams.reduce((total: number, team: any) => total + team.students.length, 0)
-          : institutionData.students?.length || 0,
-        status: "payment_emails_sent",
-        accountCreated: true
-      });
-    }, 1000);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const renderSponsorForm = () => (

@@ -20,16 +20,11 @@ export function AdminHeader() {
   const handleLogout = async () => {
     try {
       await logout();
-      // Clear admin session
-      localStorage.removeItem('adminSession');
       // Navigate to login page
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if logout fails, clear local data and redirect
-      localStorage.removeItem('adminSession');
-      localStorage.removeItem('student');
-      localStorage.removeItem('authToken');
+      // Even if logout fails, redirect to login
       navigate('/login');
     }
   };

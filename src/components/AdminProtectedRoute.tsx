@@ -46,7 +46,11 @@ export const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
 
         // Verify token is still valid by making a test API call
         try {
-          const response = await fetch('http://192.168.1.45:8000/api/v1/admin/dashboard/stats', {
+          // Old network URL (commented out)
+          // const response = await fetch('http://192.168.1.45:8000/api/v1/admin/dashboard/stats', {
+          
+          // Local backend URL
+          const response = await fetch('http://localhost:8000/api/v1/admin/dashboard/stats', {
             headers: {
               'Authorization': `Bearer ${authToken}`,
               'Content-Type': 'application/json'
