@@ -64,55 +64,49 @@ const RegisterPage = () => {
   const [formData, setFormData] = useState({
     // Step 1: Personal Details
     email: "",
-    fname: "",
-    mname: "",
-    lname: "",
-    dob: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    dateOfBirth: "",
     gender: "",
     instituteName: "",
     otherInstitute: "",
-    student_id: "",
+    studentId: "",
     phone: "",
+    address: "",
+    participationType: "",
+    selectedSports: [],
     
     // Step 2: Document Upload
     documents: {
-      photo: null,
-      idProof: null,
-      medicalCertificate: null,
-      otherDocuments: []
+      studentIdImage: null,
+      ageProofDocument: null
     },
     
     // Step 3: Parent & Medical Info
     parentInfo: {
-      parentName: "",
-      parentPhone: "",
-      parentEmail: "",
-      relationship: "",
-      occupation: "",
-      address: ""
+      parentsAttending: "no",
+      parents: []
     },
     medicalInfo: {
-      bloodGroup: "",
-      allergies: "",
-      medicalConditions: "",
-      emergencyContact: "",
-      emergencyPhone: ""
+      medicalFacilities: "no",
+      medicalFacilitiesDetails: "",
+      allergiesConditions: "no",
+      allergiesDetails: ""
     },
     
     // Step 4: Sports Selection
     sportsSelection: {
-      selectedSports: [],
-      experience: "",
-      achievements: "",
-      preferences: ""
+      participationType: "",
+      selectedSports: []
     },
     
     // Step 5: Review & Payment
     paymentInfo: {
-      paymentMethod: "",
       amount: 0,
-      transactionId: "",
-      paymentStatus: "pending"
+      currency: "KES",
+      status: "pending",
+      paymentRequests: []
     }
   });
 
@@ -183,11 +177,143 @@ const RegisterPage = () => {
     
     setIsLoadingProgress(true);
     try {
+      // First try to get complete student data from database
+      const completeResponse = await apiService.getCompleteStudentData(email);
+      if (completeResponse.data && completeResponse.data.success) {
+        const studentData = completeResponse.data.data;
+        
+        // Load personal details
+        if (studentData.student) {
+          setFormData(prev => ({
+            ...prev,
+            firstName: studentData.student.fname || "",
+            middleName: studentData.student.mname || "",
+            lastName: studentData.student.lname || "",
+            email: studentData.student.email || "",
+            dateOfBirth: studentData.student.dob || "",
+            gender: studentData.student.gender || "",
+            phoneNumber: studentData.student.phone || "",
+            address: studentData.student.address || "",
+            studentId: studentData.student.student_id || "",
+            instituteName: studentData.institute?.name || "",
+            instituteType: studentData.institute?.type || "",
+            participationType: studentData.student.participation_type || "",
+            selectedSports: studentData.student.selected_sports || []
+          }));
+        }
+        
+        // Load documents
+        if (studentData.documents) {
+          setFormData(prev => ({
+            ...prev,
+            documents: {
+              studentIdImage: {
+                filename: studentData.documents.student_id_filename,
+                filetype: studentData.documents.student_id_filetype
+              },
+              ageProofDocument: {
+                filename: studentData.documents.age_proof_filename,
+                filetype: studentData.documents.age_proof_filetype
+              }
+            }
+          }));
+        }
+        
+        // Load parent and medical info
+        if (studentData.parent_info || studentData.medical_info || studentData.health_info) {
+          setFormData(prev => ({
+            ...prev,
+            parentInfo: {
+              parentsAttending: studentData.parent_info?.parents_coming || "no",
+              parents: studentData.parent_info ? [{
+                name: studentData.parent_info.name || "",
+                relation: studentData.parent_info.relation || "",
+                phone: studentData.parent_info.phone || "",
+                email: studentData.parent_info.email || "",
+                age: studentData.parent_info.age || 0
+              }] : []
+            },
+            medicalInfo: {
+              medicalFacilities: studentData.medical_info?.have_medinfo || "no",
+              medicalFacilitiesDetails: studentData.medical_info?.text || "",
+              allergiesConditions: studentData.health_info?.status === "Yes" ? "yes" : "no",
+              allergiesDetails: studentData.health_info?.text || ""
+            }
+          }));
+        }
+        
+        // Load sports selection
+        if (studentData.sport_assignments && studentData.sport_assignments.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            participationType: studentData.student.participation_type || "",
+            selectedSports: studentData.student.selected_sports || [],
+            sportsSelection: {
+              participationType: studentData.student.participation_type || "",
+              selectedSports: studentData.sport_assignments || []
+            }
+          }));
+        }
+        
+        // Load payment info
+        if (studentData.payment_requests && studentData.payment_requests.length > 0) {
+          const totalAmount = studentData.payment_requests.reduce((sum: number, payment: any) => sum + payment.amount, 0);
+          const isPaymentCompleted = studentData.registration_status.payment_completed;
+          
+          setFormData(prev => ({
+            ...prev,
+            paymentInfo: {
+              amount: totalAmount,
+              currency: "KES",
+              status: isPaymentCompleted ? "completed" : "pending",
+              paymentRequests: studentData.payment_requests
+            }
+          }));
+        }
+        
+        // Determine current step and completed phases based on registration status
+        const status = studentData.registration_status;
+        let currentStep = 1;
+        const completedPhases: number[] = [];
+        
+        if (status.has_personal_details) {
+          completedPhases.push(1);
+          currentStep = 2;
+        }
+        if (status.has_documents) {
+          completedPhases.push(2);
+          currentStep = 3;
+        }
+        if (status.has_medical_info && status.has_parent_info) {
+          completedPhases.push(3);
+          currentStep = 4;
+        }
+        if (status.has_sports) {
+          completedPhases.push(4);
+          currentStep = 5;
+        }
+        if (status.has_payment) {
+          completedPhases.push(5);
+          currentStep = 5; // Stay on review step
+        }
+        
+        setCurrentStep(currentStep);
+        setCompletedPhases(completedPhases);
+        
+        toast({
+          title: "Data Loaded ✅",
+          description: `Welcome back! Your registration data has been loaded. ${status.payment_completed ? 'Payment completed!' : ''}`,
+        });
+        
+        return; // Exit early if we got complete data
+      }
+      
+      // Fallback to registration progress if complete data not available
       const response = await apiService.getStudentRegistrationProgress(email);
       const progressData = response.data;
       
       if (progressData) {
-        // Load form data
+        // Load form data from progress
         if (progressData.personal_details) {
           setFormData(prev => ({
             ...prev,
@@ -215,6 +341,8 @@ const RegisterPage = () => {
         if (progressData.sports_selection) {
           setFormData(prev => ({
             ...prev,
+            participationType: progressData.sports_selection.participationType || "",
+            selectedSports: progressData.sports_selection.selectedSports || [],
             sportsSelection: progressData.sports_selection
           }));
         }
@@ -418,9 +546,8 @@ const RegisterPage = () => {
   };
 
   const calculateFees = () => {
-    const baseFee = 50;
     const sportFee = formData.selectedSports.length * 25;
-    return baseFee + sportFee;
+    return sportFee;
   };
 
   const handleSubmit = async () => {
@@ -501,7 +628,7 @@ const RegisterPage = () => {
                   <Input
                     placeholder="Enter your first name"
                     value={formData.firstName}
-                    onChange={(e) => handleInputChange("firstName", e.target.value)}
+                    onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
                     className="pl-12 h-12 text-base"
                   />
                 </div>
@@ -513,7 +640,7 @@ const RegisterPage = () => {
                   <Input
                     placeholder="Enter your middle name (optional)"
                     value={formData.middleName}
-                    onChange={(e) => handleInputChange("middleName", e.target.value)}
+                    onChange={(e) => setFormData(prev => ({ ...prev, middleName: e.target.value }))}
                     className="pl-12 h-12 text-base"
                   />
                 </div>
@@ -525,7 +652,7 @@ const RegisterPage = () => {
                   <Input
                     placeholder="Enter your last name"
                     value={formData.lastName}
-                    onChange={(e) => handleInputChange("lastName", e.target.value)}
+                    onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
                     className="pl-12 h-12 text-base"
                   />
                 </div>
@@ -540,7 +667,7 @@ const RegisterPage = () => {
                   type="email"
                   placeholder="Enter your email address"
                   value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   className="pl-12 h-12 text-base"
                 />
               </div>
@@ -555,7 +682,7 @@ const RegisterPage = () => {
                     type="date"
                     placeholder="Select your date of birth"
                     value={formData.dateOfBirth}
-                    onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                    onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                     className="pl-12 h-12 text-base"
                   />
                 </div>
@@ -563,7 +690,7 @@ const RegisterPage = () => {
               
               <div className="space-y-2">
                 <Label className="text-base font-semibold">Gender *</Label>
-                <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
+                <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
                   <SelectTrigger className="h-12 text-base">
                     <SelectValue placeholder="Select your gender" />
                   </SelectTrigger>
@@ -582,7 +709,7 @@ const RegisterPage = () => {
                   <Input
                     placeholder="Enter your student ID"
                     value={formData.studentId}
-                    onChange={(e) => handleInputChange("studentId", e.target.value)}
+                    onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
                     className="pl-12 h-12 text-base"
                   />
                 </div>
@@ -594,7 +721,7 @@ const RegisterPage = () => {
                 <Label className="text-base font-semibold">Institution *</Label>
                 <div className="relative">
                   <School className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-                  <Select value={formData.instituteName} onValueChange={(value) => handleInputChange("instituteName", value)}>
+                  <Select value={formData.instituteName} onValueChange={(value) => setFormData(prev => ({ ...prev, instituteName: value }))}>
                     <SelectTrigger className="pl-12 h-12 text-base">
                       <SelectValue placeholder="Select your institution" />
                     </SelectTrigger>
@@ -617,7 +744,7 @@ const RegisterPage = () => {
                     <Input
                       placeholder="Enter your phone number"
                       value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                       className="pl-12 h-12 text-base"
                     />
                   </div>
@@ -649,11 +776,24 @@ const RegisterPage = () => {
                 <Input
                   placeholder="Enter your institution name"
                   value={formData.otherInstitute}
-                  onChange={(e) => handleInputChange("otherInstitute", e.target.value)}
+                  onChange={(e) => setFormData(prev => ({ ...prev, otherInstitute: e.target.value }))}
                   className="h-12 text-base"
                 />
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">Address *</Label>
+              <div className="relative">
+                <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+                <Input
+                  placeholder="Enter your address"
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  className="pl-12 h-12 text-base"
+                />
+              </div>
+            </div>
 
             {otpSent && !phoneVerified && (
               <div className="space-y-4 p-6 border rounded-lg bg-muted/30">
@@ -685,82 +825,117 @@ const RegisterPage = () => {
 
       case 2:
         return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Current Class/Year *</Label>
-                <Input
-                  placeholder="e.g., 12th Grade, 2nd Year"
-                  value={formData.currentClass}
-                  onChange={(e) => handleInputChange("currentClass", e.target.value)}
-                />
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold">Document Upload</h3>
+              <p className="text-muted-foreground">Please upload the required documents. Files should be clear and readable.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Student ID Image */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Student ID Image *</Label>
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors">
+                  <div className="space-y-3">
+                    <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Upload a clear photo of your student ID card</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Accepted formats: JPG, PNG, JPEG only. Max size: 10MB
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center space-x-2">
+                      <Input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          handleFileChange("studentIdImage", file);
+                        }}
+                        className="hidden"
+                        id="studentIdImage"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById("studentIdImage")?.click()}
+                        className="h-10"
+                      >
+                        Choose File
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {files.studentIdImage ? files.studentIdImage.name : "No file chosen"}
+                      </span>
+                    </div>
+                    {formData.documents?.studentIdImage?.filename && (
+                      <div className="flex items-center space-x-2 text-green-600">
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="text-sm">Previously uploaded: {formData.documents.studentIdImage.filename}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Academic Year *</Label>
-                <Input
-                  placeholder="e.g., 2024-25"
-                  value={formData.academicYear}
-                  onChange={(e) => handleInputChange("academicYear", e.target.value)}
-                />
+
+              {/* Age Proof Document */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Age Proof Document *</Label>
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors">
+                  <div className="space-y-3">
+                    <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Birth certificate, passport, or similar official document</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Accepted formats: JPG, PNG, JPEG only. Max size: 10MB
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center space-x-2">
+                      <Input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          handleFileChange("ageProofImage", file);
+                        }}
+                        className="hidden"
+                        id="ageProofImage"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById("ageProofImage")?.click()}
+                        className="h-10"
+                      >
+                        Choose File
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {files.ageProofImage ? files.ageProofImage.name : "No file chosen"}
+                      </span>
+                    </div>
+                    {formData.documents?.ageProofDocument?.filename && (
+                      <div className="flex items-center space-x-2 text-green-600">
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="text-sm">Previously uploaded: {formData.documents.ageProofDocument.filename}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Stream/Field of Study</Label>
-                <Input
-                  placeholder="e.g., Science, Commerce, Arts, Engineering"
-                  value={formData.stream}
-                  onChange={(e) => handleInputChange("stream", e.target.value)}
-                />
+            {/* Document Guidelines */}
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-base font-semibold">Document Guidelines:</Label>
               </div>
-              <div className="space-y-2">
-                <Label>Subjects</Label>
-                <Input
-                  placeholder="e.g., Physics, Chemistry, Mathematics"
-                  value={formData.subjects}
-                  onChange={(e) => handleInputChange("subjects", e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Previous Institution</Label>
-                <Input
-                  placeholder="Name of previous school/college"
-                  value={formData.previousInstitution}
-                  onChange={(e) => handleInputChange("previousInstitution", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Previous Class</Label>
-                <Input
-                  placeholder="e.g., 11th Grade, 1st Year"
-                  value={formData.previousClass}
-                  onChange={(e) => handleInputChange("previousClass", e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Academic Achievements</Label>
-              <Textarea
-                placeholder="List your academic achievements, awards, scholarships, etc."
-                value={formData.academicAchievements}
-                onChange={(e) => handleInputChange("academicAchievements", e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Extracurricular Activities</Label>
-              <Textarea
-                placeholder="List your extracurricular activities, clubs, societies, etc."
-                value={formData.extracurricularActivities}
-                onChange={(e) => handleInputChange("extracurricularActivities", e.target.value)}
-                rows={3}
-              />
+              <ul className="space-y-1 text-sm text-muted-foreground pl-6">
+                <li>• Only JPG, PNG, and JPEG files are accepted (PDFs not allowed)</li>
+                <li>• Ensure documents are clear and all text is readable</li>
+                <li>• Photos should be well-lit with no shadows or glare</li>
+                <li>• Full document should be visible in the image</li>
+                <li>• Files will be securely stored and only used for verification</li>
+              </ul>
             </div>
           </div>
         );
@@ -996,7 +1171,7 @@ const RegisterPage = () => {
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                     formData.participationType === "Individual" ? "border-primary bg-primary/5" : "border-muted hover:border-primary/50"
                   }`}
-                  onClick={() => handleInputChange("participationType", "Individual")}
+                  onClick={() => setFormData(prev => ({ ...prev, participationType: "Individual" }))}
                 >
                   <div className="flex items-center space-x-3">
                     <Target className="h-5 w-5" />
@@ -1011,7 +1186,7 @@ const RegisterPage = () => {
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                     formData.participationType === "Team" ? "border-primary bg-primary/5" : "border-muted hover:border-primary/50"
                   }`}
-                  onClick={() => handleInputChange("participationType", "Team")}
+                  onClick={() => setFormData(prev => ({ ...prev, participationType: "Team" }))}
                 >
                   <div className="flex items-center space-x-3">
                     <Team className="h-5 w-5" />
@@ -1043,6 +1218,28 @@ const RegisterPage = () => {
                       <div className="flex items-center space-x-2">
                         <Activity className="h-4 w-4" />
                         <span className="text-sm font-medium">{sport}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Display previously selected sports from loaded data */}
+            {formData.sportsSelection?.selectedSports && formData.sportsSelection.selectedSports.length > 0 && (
+              <div className="space-y-3">
+                <Label className="text-base font-semibold text-green-600">Previously Selected Sports:</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {formData.sportsSelection.selectedSports.map((sport: any, index: number) => (
+                    <div key={index} className="p-3 border border-green-200 rounded-lg bg-green-50">
+                      <div className="flex items-center space-x-2">
+                        <Trophy className="h-4 w-4 text-green-600" />
+                        <div>
+                          <span className="text-sm font-medium text-green-800">{sport.sport_name}</span>
+                          <p className="text-xs text-green-600">
+                            {sport.category_name} - {sport.sub_category_name} ({sport.gender_label}, Age {sport.ageFrom}-{sport.ageTo})
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ))}

@@ -39,9 +39,8 @@ export const ReviewPaymentStep = ({ registrationData, onComplete, onBack }: Revi
   const { toast } = useToast();
 
   const calculateTotal = () => {
-    const baseFee = 50;
     const sportsFee = registrationData.sports?.selectedSports?.length * 25 || 0;
-    return baseFee + sportsFee;
+    return sportsFee;
   };
 
   const handlePayment = async () => {

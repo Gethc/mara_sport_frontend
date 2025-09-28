@@ -49,28 +49,35 @@ const InstitutionDashboard = () => {
   // Fetch students data
   const fetchStudents = async () => {
     try {
+      console.log('🔍 Fetching students with params:', { searchTerm, filterStatus });
       const response = await apiService.getInstitutionStudents({
         search: searchTerm || undefined,
         payment_status: filterStatus !== "all" ? filterStatus : undefined,
       });
       
+      console.log('🔍 Raw API response:', response);
+      
       // Handle institution API response format
+      let studentsData: any[] = [];
       if (response.data && typeof response.data === 'object' && 'success' in response.data) {
         const data = response.data as any;
+        console.log('🔍 Parsed response data:', data);
         if (data.success && data.data) {
-          const studentsData = data.data.students || [];
+          studentsData = data.data.students || [];
+          console.log('🔍 Students data:', studentsData);
           setStudents(studentsData);
         } else {
+          console.log('🔍 No success or data in response');
           setStudents([]);
         }
       } else {
         // Fallback for direct array response
-        const studentsData = Array.isArray(response.data) ? response.data : [];
+        studentsData = Array.isArray(response.data) ? response.data : [];
+        console.log('🔍 Fallback students data:', studentsData);
         setStudents(studentsData);
       }
       
-      // Calculate stats from the students data
-      const studentsData = students;
+      // Calculate stats from the fetched students data
       const totalStudents = studentsData.length;
       const paidStudents = studentsData.filter((student: any) => student.payment_status === 'Paid').length;
       const unpaidStudents = totalStudents - paidStudents;
@@ -78,6 +85,15 @@ const InstitutionDashboard = () => {
       const paidAmount = studentsData.filter((student: any) => student.payment_status === 'Paid')
         .reduce((sum: number, student: any) => sum + (student.paid_amount || 0), 0);
       const pendingAmount = totalAmount - paidAmount;
+      
+      console.log('🔍 Calculated stats:', {
+        totalStudents,
+        paidStudents,
+        unpaidStudents,
+        totalAmount,
+        paidAmount,
+        pendingAmount,
+      });
       
       setStats({
         totalStudents,

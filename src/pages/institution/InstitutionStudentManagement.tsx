@@ -141,8 +141,8 @@ const InstitutionStudentManagement = () => {
 
 
   const filteredStudents = students.filter(student => 
-    student.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (filterSport === "all" || filterSport === "" || student.sports?.some((sport: string) => sport.toLowerCase().includes(filterSport.toLowerCase())))
+    (student.name || student.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (filterSport === "all" || filterSport === "" || (student.sports || []).some((sport: string) => sport.toLowerCase().includes(filterSport.toLowerCase())))
   );
 
   return (
@@ -371,7 +371,7 @@ const InstitutionStudentManagement = () => {
                     <div>
                       <p className="font-medium text-sm sm:text-base">{student.name}</p>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        {student.age} years • {student.gender} • {student.studentId}
+                        {student.age} years • {student.gender} • {student.student_id || student.studentId}
                       </p>
                       <div className="sm:hidden mt-1">
                         <p className="text-xs">{student.email}</p>
@@ -387,16 +387,19 @@ const InstitutionStudentManagement = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {student.sports.map((sport) => (
+                      {(student.sports || []).map((sport) => (
                         <Badge key={sport} variant="secondary" className="text-xs">
                           {sport}
                         </Badge>
                       ))}
+                      {(!student.sports || student.sports.length === 0) && (
+                        <span className="text-xs text-muted-foreground">No sports assigned</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={student.status === "Active" ? "default" : "secondary"} className="text-xs">
-                      {student.status}
+                    <Badge variant={(student.status || '').toLowerCase() === "active" ? "default" : "secondary"} className="text-xs">
+                      {student.status || 'Unknown'}
                     </Badge>
                   </TableCell>
                   <TableCell>

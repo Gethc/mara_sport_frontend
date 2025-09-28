@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState , useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,8 @@ interface ParentMedicalStepProps {
 
 export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: ParentMedicalStepProps) => {
   const { toast } = useToast();
-  const PARENT_FEE = 100; // Fee per parent
+  const [parentPassPricing, setParentPassPricing] = useState<any>(null);
+  const [isLoadingPricing, setIsLoadingPricing] = useState(false);
   
   const [formData, setFormData] = useState({
     parentsAttending: initialData?.parentsAttending || "",
@@ -40,6 +41,31 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
 
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Load parent pass pricing on component mount
+  useEffect(() => {
+    loadParentPassPricing();
+  }, []);
+
+  const loadParentPassPricing = async () => {
+    setIsLoadingPricing(true);
+    try {
+      const response = await apiService.getPricingSummary();
+      const data = response.data as any;
+      if (data && data.success) {
+        setParentPassPricing(data.data);
+      }
+    } catch (error) {
+      console.error("Error loading parent pass pricing:", error);
+      // Fallback to default pricing if API fails
+      setParentPassPricing({
+        13: [{ amount: 300, pass_type: "Early Bird" }], // Under 13
+        14: [{ amount: 500, pass_type: "Early Bird" }]  // 13+
+      });
+    } finally {
+      setIsLoadingPricing(false);
+    }
+  };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -83,8 +109,8 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
           if (!parent.relation) newErrors.push(`Parent ${index + 1}: Relation is required`);
           if (!parent.phone) newErrors.push(`Parent ${index + 1}: Phone is required`);
           if (!parent.age || parent.age === 0) newErrors.push(`Parent ${index + 1}: Age is required`);
-          if (parent.age && (parent.age < 18 || parent.age > 100)) {
-            newErrors.push(`Parent ${index + 1}: Age must be between 18 and 100`);
+          if (parent.age && (parent.age < 1 || parent.age > 100)) {
+            newErrors.push(`Parent ${index + 1}: Age must be between 1 and 100`);
           }
           if (!parent.email) newErrors.push(`Parent ${index + 1}: Email is required`);
         });
@@ -104,6 +130,22 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
     return newErrors;
   };
 
+  const calculateParentFees = () => {
+    if (formData.parentsAttending !== "yes" || !parentPassPricing) return 0;
+    
+    // Calculate total parent fees based on current pricing
+    let totalFee = 0;
+    formData.parents.forEach(parent => {
+      const category = parent.age < 13 ? 13 : 14; // Under 13 or 13+
+      const categoryPricing = parentPassPricing[category];
+      if (categoryPricing && categoryPricing.length > 0) {
+        // Use the first available pricing (current pricing)
+        totalFee += categoryPricing[0].amount;
+      }
+    });
+    return totalFee;
+  };
+
   const handleSubmit = async () => {
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
@@ -113,7 +155,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
     
     setIsLoading(true);
     try {
-      const parentFees = formData.parentsAttending === "yes" ? formData.parents.length * PARENT_FEE : 0;
+      const parentFees = calculateParentFees();
       
       // Save parent and medical information to database
       const parentMedicalData = {
@@ -125,7 +167,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
       
       const response = await apiService.saveParentMedical(parentMedicalData);
       
-      if (response.data && response.data.success) {
+      if (response.data && (response.data as any).success) {
         // Save registration progress
         const progressData = {
           email: email || initialData?.email,
@@ -148,7 +190,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
           parentCount: formData.parentsAttending === "yes" ? formData.parents.length : 0
         });
       } else {
-        throw new Error((response.data && response.data.message) || "Failed to save parent and medical information");
+        throw new Error((response.data && (response.data as any).message) || "Failed to save parent and medical information");
       }
     } catch (error) {
       console.error("Error saving parent and medical information:", error);
@@ -181,6 +223,37 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
                     <li key={index}>{error}</li>
                   ))}
                 </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {isLoadingPricing && (
+            <Alert>
+              <AlertDescription>
+                Loading parent pass pricing...
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {parentPassPricing && formData.parentsAttending === "yes" && formData.parents.length > 0 && (
+            <Alert>
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-medium">Parent Pass Pricing:</p>
+                  {formData.parents.map((parent, index) => {
+                    const category = parent.age < 13 ? 13 : 14;
+                    const categoryPricing = parentPassPricing[category];
+                    const price = categoryPricing && categoryPricing.length > 0 ? categoryPricing[0].amount : 0;
+                    return (
+                      <div key={index} className="text-sm">
+                        {parent.name || `Parent ${index + 1}`} (Age {parent.age}): KES {price}
+                      </div>
+                    );
+                  })}
+                  <div className="font-medium border-t pt-2">
+                    Total Parent Pass Fee: KES {calculateParentFees()}
+                  </div>
+                </div>
               </AlertDescription>
             </Alert>
           )}
@@ -276,7 +349,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
                           placeholder="Age"
                           value={parent.age || ""}
                           onChange={(e) => handleParentChange(index, "age", e.target.value)}
-                          min="18"
+                          min="1"
                           max="100"
                         />
                       </div>
@@ -394,12 +467,8 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
                   <span className="font-medium">{formData.parents.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Fee per Parent:</span>
-                  <span className="font-medium">₹{PARENT_FEE}</span>
-                </div>
-                <div className="flex justify-between text-primary font-semibold border-t pt-1">
                   <span>Total Parent Fees:</span>
-                  <span>₹{formData.parents.length * PARENT_FEE}</span>
+                  <span className="font-medium">₹{calculateParentFees()}</span>
                 </div>
               </div>
             </div>

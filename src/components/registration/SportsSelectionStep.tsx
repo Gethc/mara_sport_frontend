@@ -85,11 +85,30 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
   const [genderOptions, setGenderOptions] = useState<GenderOption[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [feeCalculation, setFeeCalculation] = useState<any>(null);
+  const [parentPassPricing, setParentPassPricing] = useState<any>(null);
 
   // Load initial data
   useEffect(() => {
     loadInitialData();
+    loadParentPassPricing();
   }, []);
+
+  const loadParentPassPricing = async () => {
+    try {
+      const response = await apiService.getPricingSummary();
+      const data = response.data as any;
+      if (data && data.success) {
+        setParentPassPricing(data.data);
+      }
+    } catch (error) {
+      console.error("Error loading parent pass pricing:", error);
+      // Fallback to default pricing if API fails
+      setParentPassPricing({
+        13: [{ amount: 300, pass_type: "Early Bird" }], // Under 13
+        14: [{ amount: 500, pass_type: "Early Bird" }]  // 13+
+      });
+    }
+  };
 
   // Load sports when participation type changes
   useEffect(() => {
@@ -228,8 +247,7 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
     try {
       const calculationData = {
         selectedSports: formData.selectedSports,
-        parentCount: 0, // Will be updated when parent data is available
-        baseFee: 1000 // Base registration fee in KES
+        parentCount: 0 // Will be updated when parent data is available
       };
 
       const response = await apiService.calculateTotalFees(calculationData);
@@ -666,10 +684,6 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
                 {feeCalculation ? (
                   <div className="text-xs text-muted-foreground mt-1 space-y-1">
                     <div className="flex justify-between">
-                      <span>Base Fee:</span>
-                      <span>KES {feeCalculation.breakdown.base_fee.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span>Sports Fee ({formData.selectedSports.length} sports):</span>
                       <span>KES {feeCalculation.breakdown.sports_fees.reduce((sum: number, sport: any) => sum + sport.fee, 0).toLocaleString()}</span>
                     </div>
@@ -680,9 +694,9 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
                   </div>
                 ) : (
                   <div className="text-xs text-muted-foreground mt-1">
-                    Base Fee: KES 1,000 + Sports Fee: KES {formData.selectedSports.length * 1000} = 
+                    Sports Fee: KES {formData.selectedSports.length * 1000} = 
                     <span className="font-medium text-primary ml-1">
-                      KES {(1000 + (formData.selectedSports.length * 1000)).toLocaleString()}
+                      KES {(formData.selectedSports.length * 1000).toLocaleString()}
                     </span>
                   </div>
                 )}

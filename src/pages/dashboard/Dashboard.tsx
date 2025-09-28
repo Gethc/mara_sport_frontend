@@ -37,19 +37,24 @@ const Dashboard = () => {
   // Fetch student data
   const fetchStudentData = async () => {
     try {
+      if (!student?.id) {
+        console.error('Student ID not available');
+        return;
+      }
+      
       // Fetch student's registered sports
-      const response = await apiService.getRegistrations();
+      const response = await apiService.getStudentSportAssignments(student.id);
       const data = (response.data as any[]) || [];
       setRegisteredSports(data);
       
       // Calculate stats
       const totalSports = data.length;
-      const paidSports = data.filter((sport: any) => sport.payment_status === 'Paid').length;
-      const pendingSports = totalSports - paidSports;
-      const totalAmount = data.reduce((sum: number, sport: any) => sum + (sport.amount || 0), 0);
-      const paidAmount = data.filter((sport: any) => sport.payment_status === 'Paid')
-        .reduce((sum: number, sport: any) => sum + (sport.amount || 0), 0);
-      const pendingAmount = totalAmount - paidAmount;
+      // For sport assignments, we don't have payment status, so treat all as pending
+      const paidSports = 0; // No payment status available in sport assignments
+      const pendingSports = totalSports;
+      const totalAmount = data.reduce((sum: number, sport: any) => sum + (sport.fee || 0), 0);
+      const paidAmount = 0; // No payment status available
+      const pendingAmount = totalAmount;
       
       setStats({
         totalSports,
@@ -72,8 +77,10 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    fetchStudentData();
-  }, []);
+    if (student?.id) {
+      fetchStudentData();
+    }
+  }, [student?.id]);
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
@@ -262,14 +269,16 @@ const Dashboard = () => {
               {registeredSports.map((sport) => (
                 <div key={sport.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="space-y-1">
-                    <h4 className="font-medium">{sport.sport_name || sport.sport}</h4>
+                    <h4 className="font-medium">
+                      {sport.sport_name || sport.sport || `Sport ID: ${sport.sport_id}`}
+                    </h4>
                     <p className="text-sm text-muted-foreground">
-                      {sport.subcategory || sport.category} • ₹{sport.amount || sport.fee}
+                      {sport.subcategory || sport.category || `Category ID: ${sport.category_id}`} • ₹{sport.amount || sport.fee || 0}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={getPaymentStatusColor(sport.payment_status || sport.status)}>
-                      {sport.payment_status || sport.status}
+                    <Badge className={getPaymentStatusColor(sport.payment_status || sport.status || 'Pending')}>
+                      {sport.payment_status || sport.status || 'Pending'}
                     </Badge>
                     {sport.sponsorship_status && (
                       <Badge className={getSponsorshipStatusColor(sport.sponsorship_status)}>

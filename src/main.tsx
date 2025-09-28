@@ -5,6 +5,7 @@ import { NotificationProvider } from "@/contexts/NotificationContext"
 import App from './App.tsx'
 import './index.css'
 
+
 // Add error boundary for debugging
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
   constructor(props: {children: React.ReactNode}) {

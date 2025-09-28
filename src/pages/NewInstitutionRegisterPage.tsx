@@ -176,57 +176,69 @@ export const NewInstitutionRegisterPage = () => {
       if (registrationData.email && !isLoadingProgress) {
         setIsLoadingProgress(true);
         try {
-          // First try to load checkpoint data
-          const checkpointResponse = await apiService.loadRegistrationCheckpoint(registrationData.email);
-          if (checkpointResponse.data && typeof checkpointResponse.data === 'object' && 'success' in checkpointResponse.data && checkpointResponse.data.success) {
-            const checkpointData = checkpointResponse.data.data;
-            console.log("Loading checkpoint data:", checkpointData);
+          // Load registration progress from proper API
+          const progressResponse = await apiService.getInstitutionRegistrationProgress(registrationData.email);
+          console.log("Progress response:", progressResponse);
+          
+          if (progressResponse.data && typeof progressResponse.data === 'object' && 'success' in progressResponse.data && progressResponse.data.success) {
+            const progressData = progressResponse.data.data;
+            console.log("Loading progress data:", progressData);
             
-            // Update current step based on checkpoint
-            if (checkpointData.step > 0) {
-              setCurrentStep(checkpointData.step as any);
-            }
-            
-            // Update completed steps
-            if (checkpointData.completed_steps && Array.isArray(checkpointData.completed_steps)) {
-              setCompletedSteps(checkpointData.completed_steps);
-            }
-            
-            // Update registration data with checkpoint data
-            if (checkpointData.data) {
+            if (progressData) {
+              // Update current step based on progress
+              if (progressData.current_phase > 0) {
+                setCurrentStep(progressData.current_phase as any);
+              }
+              
+              // Update completed steps
+              if (progressData.completed_phases && Array.isArray(progressData.completed_phases)) {
+                setCompletedSteps(progressData.completed_phases);
+              }
+              
+              // Update registration data with progress data
               setRegistrationData(prev => ({
                 ...prev,
-                ...checkpointData.data
+                institutionDetails: progressData.institution_details || null,
+                students: progressData.students || null,
+                payment: progressData.payment_info || null
               }));
+              
+              console.log("✅ Registration progress loaded successfully");
+            } else {
+              console.log("⚠️ No progress data found, using localStorage data");
+              // Don't reset to step 1 if we have localStorage data
+              const savedStep = localStorage.getItem('institution_registration_step');
+              const savedEmail = localStorage.getItem('institution_registration_email');
+              
+              if (savedEmail === registrationData.email && savedStep) {
+                console.log("Using saved step from localStorage:", savedStep);
+                // Keep the current step from localStorage
+              } else {
+                console.log("No saved data found, starting from step 1");
+              }
             }
           } else {
-            // Fallback to old progress loading
-            const response = await apiService.getInstitutionRegistrationProgress(registrationData.email);
-            if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
-              const responseData = response.data as any;
-              if (responseData.success && responseData.data) {
-                const progressData = responseData.data;
-                console.log("Loading progress data:", progressData);
-                setRegistrationData(prev => ({
-                  ...prev,
-                  institutionDetails: progressData.institution_details || null,
-                  students: progressData.students || null,
-                  payment: progressData.payment_info || null
-                }));
-                
-                // Set completed steps based on saved data (mapped to new structure)
-                const completedSteps = [];
-                if (progressData.institution_details) completedSteps.push(1);
-                // Skip old step 2 (Sports & Categories) as it's now integrated into step 2
-                if (progressData.students) completedSteps.push(2);
-                if (progressData.payment_info) completedSteps.push(3);
-                setCompletedSteps(completedSteps);
-                console.log("Completed steps set to:", completedSteps);
-              }
+            console.log("⚠️ No progress found, using localStorage data");
+            // Don't reset to step 1 if we have localStorage data
+            const savedStep = localStorage.getItem('institution_registration_step');
+            const savedEmail = localStorage.getItem('institution_registration_email');
+            
+            if (savedEmail === registrationData.email && savedStep) {
+              console.log("Using saved step from localStorage:", savedStep);
+              // Keep the current step from localStorage
+            } else {
+              console.log("No saved data found, starting from step 1");
             }
           }
         } catch (error) {
-          console.error('Error loading registration progress:', error);
+          console.error("❌ Error loading registration progress:", error);
+          // Don't reset to step 1 on error, keep localStorage data
+          const savedStep = localStorage.getItem('institution_registration_step');
+          const savedEmail = localStorage.getItem('institution_registration_email');
+          
+          if (savedEmail === registrationData.email && savedStep) {
+            console.log("Using saved step from localStorage after error:", savedStep);
+          }
         } finally {
           setIsLoadingProgress(false);
         }
@@ -234,13 +246,14 @@ export const NewInstitutionRegisterPage = () => {
     };
 
     loadProgress();
-  }, [registrationData.email]); // Removed isLoadingProgress from dependencies to prevent loop
+  }, [registrationData.email]);
 
   // Save registration progress
   const saveProgress = async (stepData: any, step: number) => {
     if (!registrationData.email) return;
 
     try {
+      // Prepare progress data for the proper API
       const progressData = {
         email: registrationData.email,
         current_phase: step,
@@ -250,9 +263,12 @@ export const NewInstitutionRegisterPage = () => {
         payment_info: step === 3 ? stepData : registrationData.payment
       };
 
+      // Save to proper registration progress system
       await apiService.saveInstitutionRegistrationProgress(progressData);
+      console.log("✅ Registration progress saved successfully for step:", step);
     } catch (error) {
-      console.error('Error saving registration progress:', error);
+      console.error('❌ Error saving registration progress:', error);
+      // Don't show error to user, just log it
     }
   };
 
@@ -391,12 +407,37 @@ export const NewInstitutionRegisterPage = () => {
 
       const response = await apiService.createInstitute(instituteData);
       
+      let instituteId = null;
+      let isExisting = false;
+      
       if (response.data && typeof response.data === 'object' && 'success' in response.data && response.data.success) {
         const responseData = response.data as any;
-        const instituteId = responseData.data?.id;
+        instituteId = responseData.data?.id;
+      } else {
+        // Check if it's a duplicate email error
+        const responseData = response.data as any;
+        if (responseData?.error_code === "EMAIL_EXISTS") {
+          // Institute already exists, get the existing institute ID
+          try {
+            const existingInstituteResponse = await apiService.getInstituteByEmail(finalData.email);
+            if (existingInstituteResponse.data?.success) {
+              instituteId = existingInstituteResponse.data.data?.id;
+              isExisting = true;
+              console.log("Using existing institute ID:", instituteId);
+            }
+          } catch (error) {
+            console.error("Failed to get existing institute:", error);
+          }
+        }
         
+        if (!instituteId) {
+          throw new Error(responseData?.message || "Registration failed");
+        }
+      }
+      
+      if (instituteId) {
         toast({
-          title: "Institution Registration Complete! 🎉",
+          title: isExisting ? "Registration Completed! 🎉" : "Institution Registration Complete! 🎉",
           description: `Your Institution ID is: ${instituteId}`,
         });
         
@@ -418,9 +459,6 @@ export const NewInstitutionRegisterPage = () => {
         
         // Navigate to institution dashboard
         navigate("/institution");
-      } else {
-        const responseData = response.data as any;
-        throw new Error(responseData?.message || "Registration failed");
       }
     } catch (error) {
       console.error('Registration error:', error);

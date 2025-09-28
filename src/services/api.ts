@@ -261,6 +261,10 @@ class ApiService {
     });
   }
 
+  async getInstituteByEmail(email: string) {
+    return this.request(`/institutes/by-email/${encodeURIComponent(email)}`);
+  }
+
   async updateInstitute(id: number, instituteData: any) {
     return this.request(`/institutes/${id}`, {
       method: 'PUT',
@@ -476,16 +480,6 @@ class ApiService {
     return this.request(`/admin/students${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getAdminPayments(params?: { search?: string; status?: string; dateFrom?: string; dateTo?: string }) {
-    const queryParams = new URLSearchParams();
-    if (params?.search) queryParams.append('search', params.search);
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.dateFrom) queryParams.append('date_from', params.dateFrom);
-    if (params?.dateTo) queryParams.append('date_to', params.dateTo);
-    
-    const queryString = queryParams.toString();
-    return this.request(`/admin/payments${queryString ? `?${queryString}` : ''}`);
-  }
 
   async getAdminInvoices(params?: { search?: string; status?: string; institution?: string }) {
     const queryParams = new URLSearchParams();
@@ -767,6 +761,12 @@ class ApiService {
     });
   }
 
+  async getCompleteStudentData(email: string) {
+    return this.request(`/students/complete-data/${email}`, {
+      method: 'GET',
+    });
+  }
+
   async deleteStudentRegistrationProgress(email: string) {
     return this.request(`/registration/student/progress/${email}`, {
       method: 'DELETE',
@@ -972,6 +972,8 @@ class ApiService {
     return this.request('/parent-passes/pricing-summary');
   }
 
+  // Age groups are now generated from sport data in frontend
+
   async getGenderOptions() {
     return this.request('/public/gender-options');
   }
@@ -980,7 +982,7 @@ class ApiService {
   async calculateTotalFees(data: {
     selectedSports: { sport_id: number }[];
     parentCount: number;
-    baseFee: number;
+    parentAges?: number[];
   }) {
     return this.request('/fee-calculation/calculate-total-fees', {
       method: 'POST',
@@ -1002,21 +1004,37 @@ class ApiService {
     });
   }
 
-  // Institution Registration Checkpoint Methods
-  async saveRegistrationCheckpoint(email: string, step: number, data: any) {
-    return this.request('/institution/checkpoint/save', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: email,
-        step: step,
-        data: data
-      }),
+  // Institution Registration Progress Methods (already defined above)
+
+  // Admin Payments Methods
+    async getAdminPayments(params: {
+      status_filter?: string;
+      type_filter?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+      sort_by?: string;
+      sort_order?: string;
+    } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value.toString());
+      }
     });
+    
+    const url = `/admin/payments?${queryParams.toString()}`;
+    return this.request(url);
   }
 
-  async loadRegistrationCheckpoint(email: string) {
-    return this.request(`/institution/checkpoint/load/${email}`);
+  async getPaymentsSummary() {
+    return this.request('/admin/payments/summary');
   }
+
+  async getPaymentDetails(paymentType: string, paymentId: number) {
+    return this.request(`/admin/payments/${paymentType}/${paymentId}`);
+  }
+
 
   // Payment Processing Methods
   async createInstitutePaymentRequest(paymentData: any) {
