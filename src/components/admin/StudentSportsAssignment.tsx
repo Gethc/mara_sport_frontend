@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trophy, Plus, Trash2, Users, Target, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { validateAgeForAgeGroup } from "@/lib/ageValidation";
 
 interface StudentSportsAssignmentProps {
   selectedSports: Array<{
@@ -62,7 +63,7 @@ export const StudentSportsAssignment = ({
     try {
       setLoading(true);
       const response = await apiService.getSports();
-      setSports(response.data || []);
+      setSports((response.data as any[]) || []);
     } catch (error) {
       console.error('Error fetching sports:', error);
       toast({
@@ -77,8 +78,8 @@ export const StudentSportsAssignment = ({
 
   const fetchCategories = async (sportId: string) => {
     try {
-      const response = await apiService.getSportCategories(sportId);
-      setCategories(response.data || []);
+      const response = await apiService.getSportCategories(parseInt(sportId));
+      setCategories((response.data as any[]) || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
       setCategories([]);
@@ -87,8 +88,8 @@ export const StudentSportsAssignment = ({
 
   const fetchSubCategories = async (categoryId: string) => {
     try {
-      const response = await apiService.getSubCategories(categoryId);
-      setSubCategories(response.data || []);
+      const response = await apiService.getSubCategories(parseInt(categoryId));
+      setSubCategories((response.data as any[]) || []);
     } catch (error) {
       console.error('Error fetching sub-categories:', error);
       setSubCategories([]);
@@ -184,6 +185,14 @@ export const StudentSportsAssignment = ({
     if (!selectedSubCategory) newErrors.push("Please select a sub-category");
     if (!selectedAgeGroup) newErrors.push("Please select an age group");
     if (!selectedGender) newErrors.push("Please select gender");
+    
+    // Validate age if student age is provided
+    if (studentAge && selectedAgeGroup) {
+      const ageValidation = validateAgeForAgeGroup(studentAge, selectedAgeGroup, false);
+      if (!ageValidation.isValid) {
+        newErrors.push(ageValidation.message || "Student age does not match selected age group");
+      }
+    }
     
     // Check for duplicates
     const duplicate = selectedSports.find(

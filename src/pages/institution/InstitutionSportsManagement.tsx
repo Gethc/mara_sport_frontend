@@ -83,7 +83,7 @@ const InstitutionSportsManagement = () => {
         setSports(response.data || []);
       }
     } catch (error) {
-      console.error("Error fetching sports:", error);
+      console.error("❌ Error fetching sports:", error);
       toast({
         title: "Error",
         description: "Failed to fetch sports data",
@@ -111,10 +111,6 @@ const InstitutionSportsManagement = () => {
     setShowEdit(true);
   };
 
-  const handleAddStudentToSport = (sport: Sport) => {
-    setSelectedSport(sport);
-    setShowAddStudent(true);
-  };
 
   const getSportTypeColor = (type: string) => {
     switch (type) {
@@ -150,13 +146,22 @@ const InstitutionSportsManagement = () => {
             Manage and view sports with enrolled students
           </p>
         </div>
-        <Button 
-          onClick={() => setShowAddStudent(true)}
-          className="w-full sm:w-auto"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Student to Sport
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={fetchSports}
+            className="w-full sm:w-auto"
+          >
+            Refresh
+          </Button>
+          <Button 
+            onClick={() => setShowAddStudent(true)}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Student to Sport
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -277,17 +282,9 @@ const InstitutionSportsManagement = () => {
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     size="sm"
-                    className="flex-1"
-                    onClick={() => handleAddStudentToSport(sport)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Student
-                  </Button>
-                  <Button
-                    size="sm"
                     variant="outline"
                     onClick={() => handleViewDetails(sport)}
-                    className="flex-1 sm:flex-none"
+                    className="flex-1"
                   >
                     View Details
                   </Button>
@@ -321,10 +318,6 @@ const InstitutionSportsManagement = () => {
           onEdit={() => {
             setShowDetails(false);
             setShowEdit(true);
-          }}
-          onAddStudent={() => {
-            setShowDetails(false);
-            setShowAddStudent(true);
           }}
         />
       )}

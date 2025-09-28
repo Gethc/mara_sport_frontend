@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search, Filter, Eye, Edit, Trash2, Download, User, Building2, Calendar, Loader2, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { validateAgeForAgeGroup } from "@/lib/ageValidation";
 import { StudentSportsAssignment } from "@/components/admin/StudentSportsAssignment";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -190,6 +191,17 @@ const AdminStudents = () => {
     if (!addForm.student_id) errors.push("Student ID is required");
     if (!addForm.institution_type) errors.push("Institution type is required");
     if (!addForm.institution_name) errors.push("Institution name is required");
+
+    // Validate age for sport assignments
+    if (addForm.assignedSports && addForm.assignedSports.length > 0) {
+      // Note: We would need student's date of birth to calculate age
+      // For now, we'll validate that age groups are properly formatted
+      for (const sport of addForm.assignedSports) {
+        if (!sport.ageGroup) {
+          errors.push(`Age group is required for ${sport.sportName}`);
+        }
+      }
+    }
 
     if (errors.length > 0) {
       toast({

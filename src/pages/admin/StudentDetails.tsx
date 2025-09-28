@@ -12,6 +12,7 @@ import { ArrowLeft, Edit, Save, X, Trophy, User, Mail, GraduationCap, Building }
 import { apiService } from "@/services/api";
 import { StudentSportsAssignment } from "@/components/admin/StudentSportsAssignment";
 import { useToast } from "@/hooks/use-toast";
+import { calculateAge } from "@/lib/ageValidation";
 
 interface Student {
   id: string;
@@ -494,7 +495,7 @@ const StudentDetails = () => {
                 <StudentSportsAssignment
                   selectedSports={editForm.assignedSports}
                   onSportsChange={handleSportsChange}
-                  studentAge={18} // You can calculate this from birth date if available
+                  studentAge={student.dob ? calculateAge(student.dob) : undefined}
                   studentGender={editForm.gender}
                 />
               ) : (

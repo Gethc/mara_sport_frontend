@@ -560,7 +560,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sportType">Sport Type *</Label>
+              <Label htmlFor="sportType">Sport Type <span className="text-red-500">*</span></Label>
               <Select 
                 value={currentSportType} 
                 onValueChange={(value) => {
@@ -584,7 +584,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sport">Sport *</Label>
+              <Label htmlFor="sport">Sport <span className="text-red-500">*</span></Label>
               <Select 
                 value={currentSport} 
                 onValueChange={(value) => {
@@ -778,7 +778,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
+                <Label htmlFor="email">Email Address <span className="text-red-500">*</span></Label>
                 <Input
                   id="email"
                   type="email"
@@ -817,7 +817,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
+                <Label htmlFor="phone">Phone Number <span className="text-red-500">*</span></Label>
                 <Input
                   id="phone"
                   type="tel"

@@ -327,7 +327,7 @@ const UnifiedLoginPage = () => {
                   {/* Password field only for admin */}
                   {selectedRole === 'admin' && (
                     <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
+                      <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                         <Input

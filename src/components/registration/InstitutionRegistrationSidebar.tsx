@@ -16,14 +16,15 @@ const steps = [
     description: "Basic information and contact details",
     icon: Building,
   },
+  // Sports step removed per requirements
   {
-    id: 2,
+    id: 3,
     title: "Add Students", 
     description: "Add students and select sports",
     icon: Users,
   },
   {
-    id: 3,
+    id: 4,
     title: "Payment",
     description: "Review and complete payment",
     icon: CreditCard,

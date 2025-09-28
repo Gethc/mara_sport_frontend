@@ -27,6 +27,9 @@ import InstitutionDashboard from "./pages/institution/InstitutionDashboard";
 import InstitutionStudentManagement from "./pages/institution/InstitutionStudentManagement";
 import InstitutionSportsManagement from "./pages/institution/InstitutionSportsManagement";
 import InstitutionPayments from "./pages/institution/InstitutionPayments";
+import InstitutionProfile from "./pages/institution/InstitutionProfile";
+import StudentPaymentPage from "./pages/StudentPaymentPage";
+import StudentLoginPage from "./pages/StudentLoginPage";
 
 // Admin Panel
 import AdminLayout from "./layouts/AdminLayout";
@@ -90,6 +93,8 @@ const App = () => (
                 <UnifiedLoginPage />
               </PublicRoute>
             } />
+            <Route path="/student-payment/:studentId" element={<StudentPaymentPage />} />
+            <Route path="/student-login" element={<StudentLoginPage />} />
             
             {/* Student Dashboard Routes */}
             <Route path="/dashboard" element={
@@ -122,6 +127,7 @@ const App = () => (
               </InstitutionProtectedRoute>
             }>
               <Route index element={<InstitutionDashboard />} />
+              <Route path="profile" element={<InstitutionProfile />} />
               <Route path="institution-students" element={<InstitutionStudentManagement />} />
               <Route path="institution-sports" element={<InstitutionSportsManagement />} />
               <Route path="institution-payments" element={<InstitutionPayments />} />

@@ -32,19 +32,34 @@ const InstitutionStudentManagement = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
-  
-
-  const [newStudent, setNewStudent] = useState({
+  const [editForm, setEditForm] = useState({
     firstName: "",
+    middleName: "",
     lastName: "",
     email: "",
     dateOfBirth: "",
     gender: "",
     studentId: "",
-    sport: "",
-    subCategory: "",
+    phoneNumber: "",
+    address: "",
+  });
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+
+  const [newStudent, setNewStudent] = useState({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    email: "",
+    dateOfBirth: "",
+    gender: "",
+    studentId: "",
+    phoneNumber: "",
+    address: "",
   });
 
+<<<<<<< HEAD
   const [sportsOptions, setSportsOptions] = useState<{[k:string]: string[]}>({});
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +91,33 @@ const InstitutionStudentManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching students:', error);
+=======
+
+  // Fetch students from database
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Fetching students...');
+      console.log('Auth token:', localStorage.getItem('authToken'));
+      
+      const response = await apiService.getInstitutionStudents();
+      console.log('📥 API Response:', response);
+      
+      if (response.data && (response.data as any).data && (response.data as any).data.students) {
+        console.log('✅ Students found:', (response.data as any).data.students);
+        setStudents((response.data as any).data.students);
+      } else {
+        console.log('⚠️ No students in response');
+        console.log('Response structure:', response);
+        setStudents([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching students:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch students data. Please try logging in again.",
+        variant: "destructive",
+      });
       setStudents([]);
     } finally {
       setLoading(false);
@@ -110,40 +152,149 @@ const InstitutionStudentManagement = () => {
     }
   };
 
-  const handleAddStudent = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Student Added Successfully",
-      description: `${newStudent.firstName} ${newStudent.lastName} has been added to the system.`,
-    });
-    setNewStudent({
-      firstName: "",
-      lastName: "",
-      email: "",
-      dateOfBirth: "",
-      gender: "",
-      studentId: "",
-      sport: "",
-      subCategory: "",
-    });
-    setShowAddDialog(false);
+    
+    try {
+      setLoading(true);
+      
+      
+      // Map frontend form data to backend schema
+      const studentData = {
+        fname: newStudent.firstName,
+        mname: newStudent.middleName,
+        lname: newStudent.lastName,
+        email: newStudent.email,
+        dob: newStudent.dateOfBirth,
+        gender: newStudent.gender,
+        student_id: newStudent.studentId,
+        phone: newStudent.phoneNumber,
+        address: newStudent.address,
+        institute_id: null // Will be set by backend based on authenticated user
+      };
+      
+      console.log('🔄 Creating student with data:', studentData);
+      const response = await apiService.createInstitutionStudent(studentData);
+      console.log('📥 Student creation response:', response);
+      
+      if (response.data) {
+        toast({
+          title: "Student Added Successfully",
+          description: `${newStudent.firstName} ${newStudent.lastName} has been added to the system.`,
+        });
+        
+        // Reset form
+      setNewStudent({
+        firstName: "",
+        middleName: "",
+        lastName: "",
+        email: "",
+        dateOfBirth: "",
+        gender: "",
+        studentId: "",
+        phoneNumber: "",
+        address: "",
+      });
+        setShowAddDialog(false);
+        
+        // Refresh student list
+        fetchStudents();
+      } else {
+        throw new Error(response.message || "Failed to create student");
+      }
+    } catch (error: any) {
+      console.error("❌ Error creating student:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add student. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const startEditStudent = (student: any) => {
     setEditingStudent(student);
+    // Populate edit form with student data
+    setEditForm({
+      firstName: student.fname || "",
+      middleName: student.mname || "",
+      lastName: student.lname || "",
+      email: student.email || "",
+      dateOfBirth: student.dob || "",
+      gender: student.gender || "",
+      studentId: student.student_id || "",
+      phoneNumber: student.phone || "",
+      address: student.address || "",
+    });
     setShowEditDialog(true);
   };
 
-  const handleEditSave = () => {
-    toast({ title: "Student updated", description: `${editingStudent?.name} updated.` });
-    setShowEditDialog(false);
+  const handleEditSave = async () => {
+    if (!editingStudent) return;
+    
+    try {
+      setLoading(true);
+      
+      // Map frontend form data to backend schema
+      const studentData = {
+        fname: editForm.firstName,
+        mname: editForm.middleName,
+        lname: editForm.lastName,
+        email: editForm.email,
+        dob: editForm.dateOfBirth,
+        gender: editForm.gender,
+        student_id: editForm.studentId,
+        phone: editForm.phoneNumber,
+        address: editForm.address,
+      };
+      
+      console.log('🔄 Updating student with data:', studentData);
+      const response = await apiService.updateInstitutionStudent(editingStudent.id, studentData);
+      console.log('📥 Student update response:', response);
+      
+      if (response.data && (response.data as any).success) {
+        toast({
+          title: "Student Updated Successfully",
+          description: `${editForm.firstName} ${editForm.lastName} has been updated.`,
+        });
+        
+        setShowEditDialog(false);
+        
+        // Refresh student list
+        fetchStudents();
+      } else {
+        throw new Error((response.data as any)?.message || "Failed to update student");
+      }
+    } catch (error: any) {
+      console.error('❌ Error updating student:', error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update student. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
 
-  const filteredStudents = students.filter(student => 
-    (student.name || student.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (filterSport === "all" || filterSport === "" || (student.sports || []).some((sport: string) => sport.toLowerCase().includes(filterSport.toLowerCase())))
-  );
+  const filteredStudents = students.filter(student => {
+    const fullName = `${student.fname || ''} ${student.lname || ''}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
+                         student.student_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // For now, we'll show all students regardless of sport filter since we need to implement sport filtering
+    const matchesSport = filterSport === "all" || filterSport === "";
+    
+    return matchesSearch && matchesSport;
+  });
 
   return (
     <div className="space-y-6">
@@ -155,6 +306,9 @@ const InstitutionStudentManagement = () => {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={fetchStudents}>
+            Refresh
+          </Button>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-primary">
@@ -173,7 +327,7 @@ const InstitutionStudentManagement = () => {
               <form onSubmit={handleAddStudent} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">First Name <span className="text-red-500">*</span></Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
@@ -188,7 +342,22 @@ const InstitutionStudentManagement = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="middleName">Middle Name <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Input
+                        id="middleName"
+                        placeholder="Enter middle name"
+                        value={newStudent.middleName}
+                        onChange={(e) => setNewStudent(prev => ({ ...prev, middleName: e.target.value }))}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name <span className="text-red-500">*</span></Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
@@ -205,8 +374,8 @@ const InstitutionStudentManagement = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Gender</Label>
-                    <Select value={newStudent.gender} onValueChange={(value) => setNewStudent(prev => ({ ...prev, gender: value }))}>
+                    <Label>Gender <span className="text-red-500">*</span></Label>
+                    <Select value={newStudent.gender} onValueChange={(value) => setNewStudent(prev => ({ ...prev, gender: value }))} required>
                       <SelectTrigger>
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
@@ -219,7 +388,7 @@ const InstitutionStudentManagement = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="dob">Date of Birth</Label>
+                    <Label htmlFor="dob">Date of Birth <span className="text-red-500">*</span></Label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
@@ -235,7 +404,7 @@ const InstitutionStudentManagement = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
@@ -251,7 +420,7 @@ const InstitutionStudentManagement = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="studentId">Student ID</Label>
+                  <Label htmlFor="studentId">Student ID <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <IdCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
@@ -266,31 +435,36 @@ const InstitutionStudentManagement = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Sport</Label>
-                  <Select value={newStudent.sport} onValueChange={(value) => setNewStudent(prev => ({ ...prev, sport: value, subCategory: "" }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a sport" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.keys(sportsOptions).map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="phoneNumber">Phone Number <span className="text-red-500">*</span></Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      id="phoneNumber"
+                      type="tel"
+                      placeholder="Enter phone number"
+                      value={newStudent.phoneNumber}
+                      onChange={(e) => setNewStudent(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Sub-category</Label>
-                  <Select value={newStudent.subCategory} onValueChange={(value) => setNewStudent(prev => ({ ...prev, subCategory: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select sub-category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(sportsOptions[newStudent.sport] || []).map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-3 text-muted-foreground h-4 w-4" />
+                    <Input
+                      id="address"
+                      placeholder="Enter address"
+                      value={newStudent.address}
+                      onChange={(e) => setNewStudent(prev => ({ ...prev, address: e.target.value }))}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
+
 
                 <div className="flex justify-end space-x-2">
                   <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
@@ -365,6 +539,7 @@ const InstitutionStudentManagement = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
+<<<<<<< HEAD
               {filteredStudents.map((student) => (
                 <TableRow key={student.id}>
                   <TableCell>
@@ -419,51 +594,200 @@ const InstitutionStudentManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Edit Student Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Add Student Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Student</DialogTitle>
-            <DialogDescription>Update student profile and sports category.</DialogDescription>
+            <DialogTitle>Add New Student</DialogTitle>
+            <DialogDescription>
+              Add a new student to your institution
+            </DialogDescription>
           </DialogHeader>
-          {editingStudent && (
-            <form onSubmit={(e)=>{e.preventDefault();handleEditSave();}} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>First Name</Label>
-                  <Input defaultValue={editingStudent.name.split(' ')[0]} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Last Name</Label>
-                  <Input defaultValue={editingStudent.name.split(' ').slice(1).join(' ')} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input defaultValue={editingStudent.email} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Student ID</Label>
-                  <Input defaultValue={editingStudent.studentId} />
-                </div>
+          <form onSubmit={handleAddStudent} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fname">First Name *</Label>
+                <Input
+                  id="fname"
+                  value={newStudent.fname}
+                  onChange={(e) => setNewStudent({...newStudent, fname: e.target.value})}
+                  required
+                />
               </div>
               <div className="space-y-2">
-                <Label>Sport</Label>
-                <Select defaultValue={editingStudent.sports[0] || ""}>
+                <Label htmlFor="mname">Middle Name</Label>
+                <Input
+                  id="mname"
+                  value={newStudent.mname}
+                  onChange={(e) => setNewStudent({...newStudent, mname: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lname">Last Name *</Label>
+                <Input
+                  id="lname"
+                  value={newStudent.lname}
+                  onChange={(e) => setNewStudent({...newStudent, lname: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="student_id">Student ID *</Label>
+                <Input
+                  id="student_id"
+                  value={newStudent.student_id}
+                  onChange={(e) => setNewStudent({...newStudent, student_id: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newStudent.email}
+                  onChange={(e) => setNewStudent({...newStudent, email: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={newStudent.phone}
+                  onChange={(e) => setNewStudent({...newStudent, phone: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dob">Date of Birth</Label>
+                <Input
+                  id="dob"
+                  type="date"
+                  value={newStudent.dob}
+                  onChange={(e) => setNewStudent({...newStudent, dob: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <Select value={newStudent.gender} onValueChange={(value) => setNewStudent({...newStudent, gender: value})}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.keys(sportsOptions).map((s)=>(
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Adding..." : "Add Student"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Student Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Student</DialogTitle>
+            <DialogDescription>
+              Update student information
+            </DialogDescription>
+          </DialogHeader>
+          {editingStudent && (
+            <form onSubmit={handleEditSave} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-fname">First Name *</Label>
+                  <Input
+                    id="edit-fname"
+                    value={editingStudent.fname}
+                    onChange={(e) => setEditingStudent({...editingStudent, fname: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-mname">Middle Name</Label>
+                  <Input
+                    id="edit-mname"
+                    value={editingStudent.mname}
+                    onChange={(e) => setEditingStudent({...editingStudent, mname: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-lname">Last Name *</Label>
+                  <Input
+                    id="edit-lname"
+                    value={editingStudent.lname}
+                    onChange={(e) => setEditingStudent({...editingStudent, lname: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-student_id">Student ID *</Label>
+                  <Input
+                    id="edit-student_id"
+                    value={editingStudent.student_id}
+                    onChange={(e) => setEditingStudent({...editingStudent, student_id: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email">Email *</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editingStudent.email}
+                    onChange={(e) => setEditingStudent({...editingStudent, email: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-phone">Phone</Label>
+                  <Input
+                    id="edit-phone"
+                    value={editingStudent.phone}
+                    onChange={(e) => setEditingStudent({...editingStudent, phone: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-dob">Date of Birth</Label>
+                  <Input
+                    id="edit-dob"
+                    type="date"
+                    value={editingStudent.dob}
+                    onChange={(e) => setEditingStudent({...editingStudent, dob: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-gender">Gender</Label>
+                  <Select value={editingStudent.gender} onValueChange={(value) => setEditingStudent({...editingStudent, gender: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={()=>setShowEditDialog(false)}>Cancel</Button>
-                <Button type="submit" className="bg-gradient-primary">Save</Button>
+                <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Saving..." : "Save Changes"}
+                </Button>
               </div>
             </form>
           )}

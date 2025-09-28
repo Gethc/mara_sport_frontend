@@ -295,7 +295,7 @@ const InstitutionRegisterPage = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Institution Name *</Label>
+                      <Label>Institution Name <span className="text-red-500">*</span></Label>
                       <Select value={formData.institutionName} onValueChange={(value) => handleInputChange("institutionName", value)} required>
                         <SelectTrigger>
                           <SelectValue placeholder="Select Institution" />
@@ -322,7 +322,7 @@ const InstitutionRegisterPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Institution Type *</Label>
+                      <Label>Institution Type <span className="text-red-500">*</span></Label>
                       <Select value={formData.institutionType} onValueChange={(value) => handleInputChange("institutionType", value)} required>
                         <SelectTrigger>
                           <SelectValue placeholder="Select Type" />
@@ -368,7 +368,7 @@ const InstitutionRegisterPage = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Primary Phone *</Label>
+                      <Label>Primary Phone <span className="text-red-500">*</span></Label>
                       <Input
                         placeholder="+91 9876543210"
                         value={formData.phone}
@@ -378,7 +378,7 @@ const InstitutionRegisterPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Primary Email *</Label>
+                      <Label>Primary Email <span className="text-red-500">*</span></Label>
                       <Input
                         type="email"
                         placeholder="info@institution.com"
@@ -417,7 +417,7 @@ const InstitutionRegisterPage = () => {
                   
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Street Address *</Label>
+                      <Label>Street Address <span className="text-red-500">*</span></Label>
                       <Textarea
                         placeholder="Complete street address"
                         value={formData.streetAddress}
@@ -612,7 +612,7 @@ const InstitutionRegisterPage = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Contact Person Name *</Label>
+                      <Label>Contact Person Name <span className="text-red-500">*</span></Label>
                       <Input
                         placeholder="John Doe"
                         value={formData.contactPersonName}
@@ -632,7 +632,7 @@ const InstitutionRegisterPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Phone *</Label>
+                      <Label>Phone <span className="text-red-500">*</span></Label>
                       <Input
                         placeholder="+91 9876543210"
                         value={formData.contactPersonPhone}
@@ -642,7 +642,7 @@ const InstitutionRegisterPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Email *</Label>
+                      <Label>Email <span className="text-red-500">*</span></Label>
                       <div className="flex gap-2">
                         <Input
                           type="email"

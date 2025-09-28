@@ -18,7 +18,7 @@ export const NewInstitutionRegisterPage = () => {
   const { toast } = useToast();
   
   // Initialize state from localStorage or defaults
-  const [currentStep, setCurrentStep] = useState<"userType" | "email" | 1 | 2 | 3>(() => {
+  const [currentStep, setCurrentStep] = useState<"userType" | "email" | 1 | 3 | 4>(() => {
     const savedStep = localStorage.getItem('institution_registration_step');
     const savedEmail = localStorage.getItem('institution_registration_email');
     
@@ -29,8 +29,8 @@ export const NewInstitutionRegisterPage = () => {
         return savedStep;
       } else {
         const stepNumber = parseInt(savedStep);
-        if (stepNumber >= 1 && stepNumber <= 3) {
-          return stepNumber as 1 | 2 | 3;
+        if (stepNumber === 1 || stepNumber === 3 || stepNumber === 4) {
+          return stepNumber as 1 | 3 | 4;
         }
       }
     } else if (savedEmail) {
@@ -53,6 +53,7 @@ export const NewInstitutionRegisterPage = () => {
       email: "",
       password: "",
       institutionDetails: null,
+      // selectedSports removed
       students: null,
       payment: null,
     };
@@ -117,14 +118,21 @@ export const NewInstitutionRegisterPage = () => {
     };
 
     loadCheckpointFromServer();
-  }, [registrationData.email, toast]); // Removed isLoadingCheckpoint from dependencies
+  }, [registrationData.email, toast]);
 
   // Auto-save checkpoint to server when step is completed
   const saveCheckpointToServer = async (step: number, data: any) => {
     if (registrationData.email && step > 0) {
       try {
         console.log("💾 Saving checkpoint to server for step:", step);
-        await apiService.saveRegistrationCheckpoint(registrationData.email, step, data);
+        
+        // Save the complete registration data, not just the current step
+        const completeData = {
+          ...registrationData,
+          [step === 1 ? "institutionDetails" : step === 3 ? "students" : step === 4 ? "payment" : "data"]: data
+        };
+        
+        await apiService.saveRegistrationCheckpoint(registrationData.email, step, completeData);
         console.log("✅ Checkpoint saved successfully");
         
         // Show success message to user
@@ -146,9 +154,10 @@ export const NewInstitutionRegisterPage = () => {
     localStorage.setItem('institution_registration_step', currentStep.toString());
   }, [currentStep]);
 
-  // Persist completedSteps to localStorage
+  // Persist completedSteps to localStorage (filter out step 2 if present)
   useEffect(() => {
-    localStorage.setItem('institution_registration_completed_steps', JSON.stringify(completedSteps));
+    const filtered = completedSteps.filter(s => s !== 2);
+    localStorage.setItem('institution_registration_completed_steps', JSON.stringify(filtered));
   }, [completedSteps]);
 
   // Persist registrationData to localStorage
@@ -248,7 +257,7 @@ export const NewInstitutionRegisterPage = () => {
     loadProgress();
   }, [registrationData.email]);
 
-  // Save registration progress
+  // Save registration progress (sports step removed)
   const saveProgress = async (stepData: any, step: number) => {
     if (!registrationData.email) return;
 
@@ -259,8 +268,9 @@ export const NewInstitutionRegisterPage = () => {
         current_phase: step,
         completed_phases: completedSteps,
         institution_details: step === 1 ? stepData : registrationData.institutionDetails,
-        students: step === 2 ? stepData : registrationData.students,
-        payment_info: step === 3 ? stepData : registrationData.payment
+        sports_subcategories: null,
+        students: step === 3 ? stepData : registrationData.students,
+        payment_info: step === 4 ? stepData : registrationData.payment
       };
 
       // Save to proper registration progress system
@@ -318,8 +328,8 @@ export const NewInstitutionRegisterPage = () => {
 
   const handleStepComplete = async (step: number, data: any) => {
     const stepKey = step === 1 ? "institutionDetails" :
-                   step === 2 ? "students" :
-                   step === 3 ? "payment" : null;
+                   step === 3 ? "students" :
+                   step === 4 ? "payment" : null;
 
     if (stepKey) {
       setRegistrationData(prev => ({ 
@@ -350,17 +360,63 @@ export const NewInstitutionRegisterPage = () => {
     };
     await saveCheckpointToServer(step, completeData);
 
-    // Move to next step
-    if (step < 3) {
-      setCurrentStep((step + 1) as any);
+    // Move to next step (skip step 2). On step 4, also finalize create in DB
+    if (step === 1) {
+      setCurrentStep(3);
+    } else if (step === 3) {
+      setCurrentStep(4);
+    } else if (step === 4) {
+      // Attempt to persist institution to DB if not already saved
+      try {
+        const details = (registrationData as any).institutionDetails || {};
+        const instituteData = {
+          name: details.institutionName || details.customInstitutionName || "Institution",
+          email: (registrationData as any).email,
+          type_id: 1,
+          // Contact person (optional)
+          contactPersonName: details.contactPersonName,
+          contactPersonEmail: details.contactPersonEmail,
+          contactPersonPhone: details.contactPersonPhone,
+          contactPersonDesignation: details.contactPersonDesignation,
+          // Institute information
+          phone: details.phoneNumber || details.phone,
+          website: details.website,
+          principalName: details.principalName,
+          principalPhone: details.principalContact || details.principalPhone,
+        };
+
+        const resp = await apiService.createInstitute(instituteData);
+        const ok = resp?.data?.success === true;
+        if (ok) {
+          toast({
+            title: "Institution saved",
+            description: "Registration details have been stored successfully.",
+          });
+        } else {
+          toast({
+            title: "Save failed",
+            description: resp?.data?.message || "Could not store institution in database.",
+            variant: "destructive",
+          });
+        }
+      } catch (e) {
+        console.error("Finalize institution failed", e);
+        toast({
+          title: "Save failed",
+          description: "Unexpected error while saving institution.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
   const handleBack = (step: number) => {
     if (step === 1) {
       setCurrentStep("email");
-    } else {
-      setCurrentStep((step - 1) as any);
+    } else if (step === 3) {
+      setCurrentStep(1);
+    } else if (step === 4) {
+      setCurrentStep(3);
     }
   };
 
@@ -440,35 +496,44 @@ export const NewInstitutionRegisterPage = () => {
           title: isExisting ? "Registration Completed! 🎉" : "Institution Registration Complete! 🎉",
           description: `Your Institution ID is: ${instituteId}`,
         });
-        
-        // Clear registration data from localStorage
-        localStorage.removeItem('institution_registration_step');
-        localStorage.removeItem('institution_registration_completed_steps');
-        localStorage.removeItem('institution_registration_data');
-        localStorage.removeItem('institution_registration_email');
-        localStorage.removeItem('institution_registration_verification_status');
-        
-        // Clear checkpoint from server
-        try {
-          await apiService.clearRegistrationCheckpoint(finalData.email);
-          console.log("✅ Checkpoint cleared from server");
-        } catch (error) {
-          console.error("❌ Failed to clear checkpoint:", error);
-          // Don't block the flow if checkpoint clearing fails
-        }
-        
-        // Navigate to institution dashboard
-        navigate("/institution");
+      } else if (response.data && typeof response.data === 'object' && 'error_code' in response.data && response.data.error_code === 'EMAIL_EXISTS') {
+        // Institution already exists, which is fine - registration is complete
+        toast({
+          title: "Institution Registration Complete! 🎉",
+          description: "Your institution is already registered and up to date.",
+        });
+      } else {
+        const responseData = response.data as any;
+        throw new Error(responseData?.message || "Registration failed");
       }
-    } catch (error) {
-      console.error('Registration error:', error);
-      toast({
-        title: "Registration Failed",
-        description: error instanceof Error ? error.message : "An error occurred during registration. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+      
+      // Clear registration data from localStorage (for both success and existing cases)
+      localStorage.removeItem('institution_registration_step');
+      localStorage.removeItem('institution_registration_completed_steps');
+      localStorage.removeItem('institution_registration_data');
+      localStorage.removeItem('institution_registration_email');
+      localStorage.removeItem('institution_registration_verification_status');
+      
+      // Clear checkpoint from server
+      try {
+        await apiService.clearRegistrationCheckpoint(finalData.email);
+        console.log("✅ Checkpoint cleared from server");
+      } catch (error) {
+        console.error("❌ Failed to clear checkpoint:", error);
+        // Don't block the flow if checkpoint clearing fails
+      }
+      
+      // Navigate to institution dashboard
+      navigate("/institution");
+  } catch (error) {
+    console.error('Registration error:', error);
+    toast({
+      title: "Registration Failed",
+      description: error instanceof Error ? error.message : "An error occurred during registration. Please try again.",
+      variant: "destructive",
+    });
+  }
+};
 
 
   if (currentStep === "userType") {
@@ -517,13 +582,7 @@ export const NewInstitutionRegisterPage = () => {
             />
           )}
           
-          {currentStep === 2 && (
-            <SportStudentAddStep
-              initialData={registrationData.students}
-              onComplete={(data) => handleStepComplete(2, data)}
-              onBack={() => handleBack(2)}
-            />
-          )}
+          {/* SportsSubCategoriesStep removed */}
           
           {currentStep === 3 && (
             <InstitutionPaymentStep

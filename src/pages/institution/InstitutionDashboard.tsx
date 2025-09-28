@@ -10,8 +10,6 @@ import {
   Search, 
   Filter, 
   Eye, 
-  Edit, 
-  Trash2, 
   Plus,
   Users,
   DollarSign,
@@ -32,7 +30,6 @@ const InstitutionDashboard = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showViewDialog, setShowViewDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
   
   // State for API data
   const [students, setStudents] = useState<any[]>([]);
@@ -120,8 +117,9 @@ const InstitutionDashboard = () => {
   }, [searchTerm, filterStatus]);
 
   const filteredStudents = students.filter(student => {
+    const fullName = `${student.fname || ''} ${student.mname || ''} ${student.lname || ''}`.trim();
     const matchesSearch = !searchTerm || 
-      student.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.student_id?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = filterStatus === "all" || 
@@ -133,19 +131,6 @@ const InstitutionDashboard = () => {
   const handleViewStudent = (student: any) => {
     setSelectedStudent(student);
     setShowViewDialog(true);
-  };
-
-  const handleEditStudent = (student: any) => {
-    setSelectedStudent(student);
-    setShowEditDialog(true);
-  };
-
-  const handleDeleteStudent = (studentId: string) => {
-    // TODO: Implement delete student API call
-    toast({
-      title: "Feature Coming Soon",
-      description: "Delete student functionality will be implemented soon.",
-    });
   };
 
   const getPaymentStatusColor = (status: string) => {
@@ -229,65 +214,6 @@ const InstitutionDashboard = () => {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/institution/students'}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              Student Management
-            </CardTitle>
-            <CardDescription>
-              Manage student registrations and view their details
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-blue-600">{stats.totalStudents}</div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">Total registered students</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/institution/sports'}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-green-600" />
-              Sports Management
-            </CardTitle>
-            <CardDescription>
-              View and manage sports with enrolled students
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-green-600">0</div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">Sports enrolled</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/institution/payments'}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-purple-600" />
-              Payment Management
-            </CardTitle>
-            <CardDescription>
-              Track payments and financial transactions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-purple-600">₹{stats.totalAmount}</div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">Total amount collected</p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Search and Filters */}
       <Card className="shadow-soft">
@@ -357,7 +283,7 @@ const InstitutionDashboard = () => {
                       <Users className="h-5 w-5 text-primary" />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="font-medium">{student.full_name}</h4>
+                      <h4 className="font-medium">{`${student.fname || ''} ${student.mname || ''} ${student.lname || ''}`.trim()}</h4>
                       <p className="text-sm text-muted-foreground">
                         ID: {student.student_id} • {student.email}
                       </p>
@@ -380,22 +306,6 @@ const InstitutionDashboard = () => {
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       View
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditStudent(student)}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteStudent(student.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
                     </Button>
                   </div>
                 </div>

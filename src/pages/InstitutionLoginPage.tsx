@@ -79,7 +79,31 @@ export const InstitutionLoginPage = () => {
       if (data.success) {
         // This is LOGIN flow - check if user is already registered
         if (data.role === 'institution') {
-          // User is registered, proceed with login
+          // Check if registration is complete by looking for checkpoint data
+          try {
+            const checkpointResponse = await apiService.loadRegistrationCheckpoint(email);
+            const checkpointData = checkpointResponse.data as any;
+            
+            if (checkpointData.success && checkpointData.data.step > 0) {
+              // Registration is incomplete, redirect to continue registration
+              toast({
+                title: "Registration Incomplete",
+                description: "Please complete your registration process first.",
+                variant: "destructive",
+              });
+              
+              // Redirect to registration with the last saved step
+              setTimeout(() => {
+                navigate("/institution/register");
+              }, 2000);
+              return;
+            }
+          } catch (error) {
+            // If checkpoint check fails, assume registration is complete
+            console.log("Checkpoint check failed, proceeding with login");
+          }
+          
+          // User is registered and registration is complete, proceed with login
           const loginSuccess = await loginWithOTP(data);
           
           if (loginSuccess) {
@@ -103,7 +127,7 @@ export const InstitutionLoginPage = () => {
           
           // Redirect to registration
           setTimeout(() => {
-            navigate("/institution/register/phase1");
+            navigate("/institution/register");
           }, 2000);
         }
       } else {

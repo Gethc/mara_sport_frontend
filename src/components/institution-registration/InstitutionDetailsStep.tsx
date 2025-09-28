@@ -331,13 +331,13 @@ export const InstitutionDetailsStep = ({
       }
     }
     
-    // Email verification requirements - make them optional for now
-    // if (!verificationStatus.institutionEmailVerified) {
-    //   newErrors.push("Institution email must be verified");
-    // }
-    // if (!verificationStatus.contactPersonEmailVerified) {
-    //   newErrors.push("Contact person email must be verified");
-    // }
+    // Email verification requirements - now mandatory
+    if (!verificationStatus.institutionEmailVerified) {
+      newErrors.push("Institution email must be verified");
+    }
+    if (!verificationStatus.contactPersonEmailVerified) {
+      newErrors.push("Contact person email must be verified");
+    }
 
     setErrors(newErrors);
     return newErrors.length === 0;
@@ -523,7 +523,7 @@ export const InstitutionDetailsStep = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="principalContact">Principal Contact Number *</Label>
+              <Label htmlFor="principalContact">Principal Contact Number <span className="text-red-500">*</span></Label>
               <Input
                 id="principalContact"
                 type="tel"
@@ -577,7 +577,7 @@ export const InstitutionDetailsStep = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contactPersonPhone">Contact Number *</Label>
+            <Label htmlFor="contactPersonPhone">Contact Number <span className="text-red-500">*</span></Label>
               <Input
                 id="contactPersonPhone"
                 type="tel"
