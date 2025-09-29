@@ -59,23 +59,93 @@ const InstitutionSportsManagement = () => {
 
   useEffect(() => {
     fetchSports();
-  }, []);
-
-  // Removed dummy data - using real data from API only
+  }, [sportTypeFilter]);
 
   const fetchSports = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Fetching sports from API...');
-      const response = await apiService.getInstitutionSports();
-      console.log('📥 Sports API Response:', response);
       
-      if (response.data && response.data.data && response.data.data.sports) {
-        console.log('✅ Sports found:', response.data.data.sports);
-        setSports(response.data.data.sports);
+      // Check if user is authenticated
+      const authToken = localStorage.getItem('authToken');
+      console.log("🔍 InstitutionSportsManagement: Auth token check:", authToken ? "Token found" : "No token found");
+      console.log("🔍 InstitutionSportsManagement: Auth token value:", authToken);
+      
+      let response;
+      if (authToken && authToken.trim() !== '') {
+        // Use authenticated endpoint if logged in
+        console.log("🔍 InstitutionSportsManagement: Using authenticated endpoint: getInstitutionSports");
+        try {
+          response = await apiService.getInstitutionSports({
+            sport_type: sportTypeFilter !== "all" ? sportTypeFilter : undefined
+          });
+          // Check if the response indicates invalid token
+          if (response.data && typeof response.data === 'object' && 'detail' in response.data && response.data.detail === 'Not authenticated') {
+            console.log("🔍 InstitutionSportsManagement: Token is invalid, clearing and switching to public API");
+            localStorage.removeItem('authToken');
+            response = await apiService.getSportsPublic(
+              sportTypeFilter !== "all" ? sportTypeFilter : undefined
+            );
+          }
+        } catch (error) {
+          console.log("🔍 InstitutionSportsManagement: Authenticated API failed, switching to public API");
+          response = await apiService.getSportsPublic(
+            sportTypeFilter !== "all" ? sportTypeFilter : undefined
+          );
+        }
       } else {
-        console.log('⚠️ No sports in response - institution may not have enrolled in any sports yet');
-        setSports([]);
+        // Use public endpoint if not logged in
+        console.log("🔍 InstitutionSportsManagement: No auth token found, using public sports API");
+        response = await apiService.getSportsPublic(
+          sportTypeFilter !== "all" ? sportTypeFilter : undefined
+        );
+      }
+      
+      console.log("🔍 InstitutionSportsManagement: API Response:", response);
+      console.log("🔍 InstitutionSportsManagement: Response data:", response.data);
+      console.log("🔍 InstitutionSportsManagement: Response success:", response.data?.success);
+      console.log("🔍 InstitutionSportsManagement: Response data.data:", response.data?.data);
+      
+      // Handle API response format
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          // Handle both institution and public API response formats
+          const sportsData = data.data.sports || data.data || [];
+          
+          // Transform public API data to match component interface
+          const transformedSports = sportsData.map((sport: any) => ({
+            id: sport.id.toString(),
+            name: sport.name,
+            type: sport.type,
+            sportType: sport.type, // Map type to sportType
+            categories: [], // Public API doesn't have categories
+            enrolledStudents: [], // Public API doesn't have enrolled students
+            totalEnrolled: 0, // Public API doesn't have enrollment data
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }));
+          
+          console.log("🔍 InstitutionSportsManagement: Transformed sports data:", transformedSports.slice(0, 3));
+          console.log("🔍 InstitutionSportsManagement: Setting sports state with:", transformedSports.length, "sports");
+          setSports(transformedSports);
+        } else {
+          setSports([]);
+        }
+      } else {
+        // Fallback for direct array response
+        const sportsData = response.data || [];
+        const transformedSports = sportsData.map((sport: any) => ({
+          id: sport.id.toString(),
+          name: sport.name,
+          type: sport.type,
+          sportType: sport.type,
+          categories: [],
+          enrolledStudents: [],
+          totalEnrolled: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+        setSports(transformedSports);
       }
     } catch (error) {
       console.error("❌ Error fetching sports:", error);
@@ -95,6 +165,12 @@ const InstitutionSportsManagement = () => {
     const matchesType = sportTypeFilter === "all" || sport.type === sportTypeFilter;
     return matchesSearch && matchesType;
   });
+  
+  console.log("🔍 InstitutionSportsManagement: Total sports:", sports.length);
+  console.log("🔍 InstitutionSportsManagement: Filtered sports:", filteredSports.length);
+  console.log("🔍 InstitutionSportsManagement: Sport type filter:", sportTypeFilter);
+  console.log("🔍 InstitutionSportsManagement: Search term:", searchTerm);
+  console.log("🔍 InstitutionSportsManagement: Rendering sports cards:", filteredSports.length);
 
   const handleViewDetails = (sport: Sport) => {
     setSelectedSport(sport);

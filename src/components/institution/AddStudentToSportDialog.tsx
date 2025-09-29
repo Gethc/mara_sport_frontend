@@ -172,20 +172,58 @@ const AddStudentToSportDialog = ({ selectedSport, onClose, onSave }: AddStudentT
 
   const fetchSports = async () => {
     try {
-      const response = await apiService.getInstitutionSports();
+      // Check if user is authenticated
+      const authToken = localStorage.getItem('authToken');
+      console.log("🔍 AddStudentToSportDialog: Auth token check:", authToken ? "Token found" : "No token found");
       
-      if (response.data && (response.data as any).data && (response.data as any).data.sports) {
-        // Transform the response to match the expected interface
-        const transformedSports = (response.data as any).data.sports.map((sport: any) => ({
-          id: sport.id,
-          name: sport.name,
-          type: sport.type,
-          categories: sport.categories || []
-        }));
-        setSports(transformedSports);
+      let response;
+      if (authToken && authToken.trim() !== '') {
+        // Use authenticated endpoint if logged in
+        console.log("🔍 AddStudentToSportDialog: Using authenticated endpoint: getInstitutionSports");
+        try {
+          response = await apiService.getInstitutionSports();
+          // Check if the response indicates invalid token
+          if (response.data && typeof response.data === 'object' && 'detail' in response.data && response.data.detail === 'Not authenticated') {
+            console.log("🔍 AddStudentToSportDialog: Token is invalid, clearing and switching to public API");
+            localStorage.removeItem('authToken');
+            response = await apiService.getSportsPublic();
+          }
+        } catch (error) {
+          console.log("🔍 AddStudentToSportDialog: Authenticated API failed, switching to public API");
+          response = await apiService.getSportsPublic();
+        }
       } else {
-        setSports([]);
+        // Use public endpoint if not logged in
+        console.log("🔍 AddStudentToSportDialog: No auth token found, using public sports API");
+        response = await apiService.getSportsPublic();
       }
+      
+      console.log("🔍 AddStudentToSportDialog: API Response:", response);
+      
+      // Handle both response formats
+      let sportsData = [];
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          // Handle both institution and public API response formats
+          sportsData = data.data.sports || data.data || [];
+        }
+      } else {
+        sportsData = response.data || [];
+      }
+      
+      console.log("🔍 AddStudentToSportDialog: Sports data:", sportsData.length, "sports");
+      
+      // Transform the response to match the expected interface
+      const transformedSports = sportsData.map((sport: any) => ({
+        id: sport.id,
+        name: sport.name,
+        type: sport.type,
+        categories: sport.categories || []
+      }));
+      
+      console.log("🔍 AddStudentToSportDialog: Transformed sports:", transformedSports.length, "sports");
+      setSports(transformedSports);
     } catch (error) {
       console.error("Error fetching sports:", error);
       toast({

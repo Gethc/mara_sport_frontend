@@ -465,7 +465,6 @@ const StudentDetails = () => {
                             "Discovery Tennis",
                             "TY SPORTS",
                             "Terriffic Tennis",
-                            "TY SPORTS",
                             "Next Gen Multi Sport Academu",
                           ] : []).map((n) => (
                             <SelectItem key={n} value={n}>{n}</SelectItem>

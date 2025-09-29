@@ -346,7 +346,18 @@ export const InstitutionDetailsStep = ({
   const handleSubmit = async () => {
     if (!validateForm()) return;
     
-    // Validate email uniqueness before proceeding
+    // Skip email validation if we're updating existing registration
+    // Check if this is an update by looking at initialData
+    const isUpdate = initialData && Object.keys(initialData).length > 0;
+    
+    if (isUpdate) {
+      // This is an update, skip email validation
+      console.log("🔄 Update mode - skipping email validation");
+      onComplete(formData);
+      return;
+    }
+    
+    // Only validate email for new registrations
     try {
       toast({
         title: "Validating Email",

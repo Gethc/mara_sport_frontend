@@ -59,20 +59,36 @@ const InstitutionStudentManagement = () => {
     address: "",
   });
 
+  const [sportsOptions, setSportsOptions] = useState<{[k:string]: string[]}>({});
 
-  // Fetch students from database
+  // Fetch students and sports data
+  useEffect(() => {
+    fetchStudents();
+    fetchSportsOptions();
+  }, [searchTerm, filterSport]);
+
   const fetchStudents = async () => {
     try {
       setLoading(true);
       console.log('🔄 Fetching students...');
       console.log('Auth token:', localStorage.getItem('authToken'));
       
-      const response = await apiService.getInstitutionStudents();
+      const response = await apiService.getInstitutionStudents({
+        search: searchTerm || undefined
+      });
       console.log('📥 API Response:', response);
       
-      if (response.data && (response.data as any).data && (response.data as any).data.students) {
-        console.log('✅ Students found:', (response.data as any).data.students);
-        setStudents((response.data as any).data.students);
+      // Handle institution API response format
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          const studentsData = data.data.students || [];
+          console.log('✅ Students found:', studentsData);
+          setStudents(studentsData);
+        } else {
+          console.log('⚠️ No students in response');
+          setStudents([]);
+        }
       } else {
         console.log('⚠️ No students in response');
         console.log('Response structure:', response);
@@ -91,9 +107,50 @@ const InstitutionStudentManagement = () => {
     }
   };
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
+  const fetchSportsOptions = async () => {
+    try {
+      // FORCE CACHE BUST - VERSION 2.0
+      console.log("🚀 CACHE BUST VERSION 2.0 - fetchSportsOptions called at:", new Date().toISOString());
+      
+      // Check if user is authenticated
+      const authToken = localStorage.getItem('authToken');
+      console.log("🔍 V2.0: Auth token check:", authToken ? "Token found" : "No token found");
+      console.log("🔍 V2.0: Auth token value:", authToken);
+      
+      let response;
+      if (authToken && authToken.trim() !== '') {
+        // Use authenticated endpoint if logged in
+        console.log("🔍 V2.0: Using authenticated endpoint: getAvailableSports");
+        response = await apiService.getAvailableSports();
+      } else {
+        // Use public endpoint if not logged in
+        console.log("🔍 V2.0: No auth token found, using public sports API for InstitutionStudentManagement");
+        response = await apiService.getSportsPublic();
+      }
+      
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          const sportsData = data.data || [];
+          const sportsOptionsMap: {[k:string]: string[]} = {};
+          
+          sportsData.forEach((sport: any) => {
+            const subCategories: string[] = [];
+            sport.categories?.forEach((category: any) => {
+              category.subCategories?.forEach((sub: any) => {
+                subCategories.push(sub.name);
+              });
+            });
+            sportsOptionsMap[sport.name] = subCategories;
+          });
+          
+          setSportsOptions(sportsOptionsMap);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching sports options:', error);
+    }
+  };
 
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -549,14 +606,16 @@ const InstitutionStudentManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Edit Student Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Add Student Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Student</DialogTitle>
-            <DialogDescription>Update student profile and sports category.</DialogDescription>
+            <DialogTitle>Add New Student</DialogTitle>
+            <DialogDescription>
+              Add a new student to your institution
+            </DialogDescription>
           </DialogHeader>
-          {editingStudent && (
+          {editingStudent ? (
             <form onSubmit={(e)=>{e.preventDefault();handleEditSave();}} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -652,6 +711,195 @@ const InstitutionStudentManagement = () => {
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={()=>setShowEditDialog(false)}>Cancel</Button>
                 <Button type="submit" className="bg-gradient-primary" disabled={loading}>
+                  {loading ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleAddStudent} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  value={newStudent.firstName}
+                  onChange={(e) => setNewStudent({...newStudent, firstName: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="middleName">Middle Name</Label>
+                <Input
+                  id="middleName"
+                  value={newStudent.middleName}
+                  onChange={(e) => setNewStudent({...newStudent, middleName: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  value={newStudent.lastName}
+                  onChange={(e) => setNewStudent({...newStudent, lastName: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="studentId">Student ID *</Label>
+                <Input
+                  id="studentId"
+                  value={newStudent.studentId}
+                  onChange={(e) => setNewStudent({...newStudent, studentId: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newStudent.email}
+                  onChange={(e) => setNewStudent({...newStudent, email: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber">Phone</Label>
+                <Input
+                  id="phoneNumber"
+                  value={newStudent.phoneNumber}
+                  onChange={(e) => setNewStudent({...newStudent, phoneNumber: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  value={newStudent.dateOfBirth}
+                  onChange={(e) => setNewStudent({...newStudent, dateOfBirth: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <Select value={newStudent.gender} onValueChange={(value) => setNewStudent({...newStudent, gender: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Adding..." : "Add Student"}
+              </Button>
+            </div>
+          </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Student Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Student</DialogTitle>
+            <DialogDescription>
+              Update student information
+            </DialogDescription>
+          </DialogHeader>
+          {editingStudent && (
+            <form onSubmit={handleEditSave} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-fname">First Name *</Label>
+                  <Input
+                    id="edit-fname"
+                    value={editingStudent.fname}
+                    onChange={(e) => setEditingStudent({...editingStudent, fname: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-mname">Middle Name</Label>
+                  <Input
+                    id="edit-mname"
+                    value={editingStudent.mname}
+                    onChange={(e) => setEditingStudent({...editingStudent, mname: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-lname">Last Name *</Label>
+                  <Input
+                    id="edit-lname"
+                    value={editingStudent.lname}
+                    onChange={(e) => setEditingStudent({...editingStudent, lname: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-student_id">Student ID *</Label>
+                  <Input
+                    id="edit-student_id"
+                    value={editingStudent.student_id}
+                    onChange={(e) => setEditingStudent({...editingStudent, student_id: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email">Email *</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editingStudent.email}
+                    onChange={(e) => setEditingStudent({...editingStudent, email: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-phone">Phone</Label>
+                  <Input
+                    id="edit-phone"
+                    value={editingStudent.phone}
+                    onChange={(e) => setEditingStudent({...editingStudent, phone: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-dob">Date of Birth</Label>
+                  <Input
+                    id="edit-dob"
+                    type="date"
+                    value={editingStudent.dob}
+                    onChange={(e) => setEditingStudent({...editingStudent, dob: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-gender">Gender</Label>
+                  <Select value={editingStudent.gender} onValueChange={(value) => setEditingStudent({...editingStudent, gender: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
                   {loading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>

@@ -20,7 +20,7 @@ const steps = [
   {
     id: 3,
     title: "Add Students", 
-    description: "Manually add student details",
+    description: "Add students and select sports",
     icon: Users,
   },
   {

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CreditCard, Building, Users, Trophy, Calculator, DollarSign, Mail, HandHeart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
 
 interface InstitutionPaymentStepProps {
   institutionData: any;
@@ -16,8 +17,7 @@ interface InstitutionPaymentStepProps {
   loading: boolean;
 }
 
-const FEE_PER_STUDENT = 500;
-const FEE_PER_SPORT = 1000;
+const FEE_PER_SPORT = 1000; // Fallback fee if API fails
 
 export const InstitutionPaymentStep = ({ 
   institutionData, 
@@ -33,57 +33,110 @@ export const InstitutionPaymentStep = ({
     reason: "",
   });
   const [fees, setFees] = useState({
-    studentsFee: 0,
     sportsFee: 0,
     totalFee: 0,
   });
+  const [feeCalculation, setFeeCalculation] = useState<any>(null);
+  const [loadingFees, setLoadingFees] = useState(true);
   const [processing, setProcessing] = useState(false);
 
+  // Calculate fees using API
   useEffect(() => {
-    // Handle new data structure with sportTeams
-    let studentCount = 0;
-    let sportsCount = 0;
-    
-    if (institutionData.sportTeams) {
-      // New structure: sportTeams array
-      studentCount = institutionData.sportTeams.reduce((total: number, team: any) => total + team.students.length, 0);
-      sportsCount = institutionData.sportTeams.length;
-    } else {
-      // Fallback to old structure
-      studentCount = institutionData.students?.length || 0;
-      sportsCount = institutionData.selectedSports?.length || 0;
-    }
-    
-    const studentsFee = studentCount * FEE_PER_STUDENT;
-    const sportsFee = sportsCount * FEE_PER_SPORT;
-    const totalFee = studentsFee + sportsFee;
+    const calculateFees = async () => {
+      try {
+        setLoadingFees(true);
+        
+        // Prepare sport teams data for institution fee calculation
+        const sportTeams = institutionData.sportTeams || [];
+        
+        if (sportTeams.length > 0) {
+          const response = await apiService.calculateInstitutionFees({
+            sportTeams
+          });
+          
+          if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+            const responseData = response.data as any;
+            if (responseData.success && responseData.data) {
+              setFeeCalculation(responseData.data);
+              
+              // Calculate total from institution fees (sports fees only)
+              const sportsFee = responseData.data.summary.sports_fee || 0;
+              const totalFee = responseData.data.summary.total_amount || sportsFee;
+              
+              setFees({
+                sportsFee: sportsFee,
+                totalFee: totalFee,
+              });
+            }
+          }
+        } else {
+          // Fallback calculation if no sports selected
+          const sportsFee = 0;
+          const totalFee = sportsFee;
+          setFees({ sportsFee, totalFee });
+        }
+      } catch (error) {
+        console.error("Failed to calculate fees:", error);
+        // Fallback to hardcoded calculation
+        const sportsCount = institutionData.sportTeams?.length || 0;
+        const sportsFee = sportsCount * FEE_PER_SPORT;
+        const totalFee = sportsFee;
+        setFees({ sportsFee, totalFee });
+        
+        toast({
+          title: "Fee Calculation Warning",
+          description: "Using fallback fee calculation. Please check with support.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingFees(false);
+      }
+    };
 
-    setFees({
-      studentsFee,
-      sportsFee,
-      totalFee,
-    });
-  }, [institutionData]);
+    calculateFees();
+  }, [institutionData, toast]);
 
-  const handlePayNow = () => {
+  const handlePayNow = async () => {
     setProcessing(true);
-    // Simulate payment gateway redirect
-    setTimeout(() => {
+    try {
+      // Create payment request in database
+      const paymentData = {
+        institute_id: institutionData.instituteId || 1, // You'll need to pass this from parent
+        amount: fees.totalFee,
+        payment_type: "pay_now"
+      };
+
+      const response = await apiService.createInstitutePaymentRequest(paymentData);
+      
+      if (response.data && response.data.success) {
+        toast({
+          title: "Payment Request Created ✅",
+          description: "Your payment request has been recorded. Admin will review it.",
+        });
+        
+        onComplete({
+          paymentType: "payNow",
+          totalFees: fees.totalFee,
+          sportsFee: fees.sportsFee,
+          status: "payment_pending",
+          paymentId: response.data.data.payment_id
+        });
+      } else {
+        throw new Error("Failed to create payment request");
+      }
+    } catch (error) {
+      console.error("Payment request failed:", error);
       toast({
-        title: "Redirecting to Payment Gateway",
-        description: "Please complete your payment to finish registration.",
+        title: "Payment Request Failed",
+        description: "Failed to create payment request. Please try again.",
+        variant: "destructive",
       });
-      onComplete({
-        paymentType: "payNow",
-        totalFees: fees.totalFee,
-        studentsFee: fees.studentsFee,
-        sportsFee: fees.sportsFee,
-        status: "payment_pending"
-      });
-    }, 1000);
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const handleSponsorRequest = () => {
+  const handleSponsorRequest = async () => {
     if (!sponsorData.requestedAmount || !sponsorData.sponsorshipType || !sponsorData.reason) {
       toast({
         title: "Missing Information",
@@ -93,130 +146,129 @@ export const InstitutionPaymentStep = ({
       return;
     }
 
-    setProcessing(true);
-    setTimeout(() => {
+    // Validate requested amount (should not exceed total fee)
+    const requestedAmount = parseFloat(sponsorData.requestedAmount);
+    if (requestedAmount > fees.totalFee) {
       toast({
-        title: "Sponsorship Request Submitted",
-        description: "Your account has been created. We'll review your sponsorship request.",
+        title: "Invalid Amount",
+        description: "Requested amount cannot exceed total fee.",
+        variant: "destructive"
       });
-      onComplete({
-        paymentType: "sponsor",
-        sponsorshipData: sponsorData,
-        totalFees: fees.totalFee,
-        status: "sponsorship_requested",
-        accountCreated: true
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      // Create sponsorship request in database
+      const sponsorshipData = {
+        institute_id: institutionData.instituteId || 1, // You'll need to pass this from parent
+        requested_amount: requestedAmount,
+        sponsorship_type: sponsorData.sponsorshipType,
+        reason: sponsorData.reason
+      };
+
+      const response = await apiService.createSponsorshipRequest(sponsorshipData);
+      
+      if (response.data && response.data.success) {
+        toast({
+          title: "Sponsorship Request Submitted ✅",
+          description: "Your sponsorship request has been recorded. Admin will review it.",
+        });
+        
+        onComplete({
+          paymentType: "sponsor",
+          sponsorshipData: sponsorData,
+          totalFees: fees.totalFee,
+          status: "sponsorship_requested",
+          sponsorshipId: response.data.data.sponsorship_id
+        });
+      } else {
+        throw new Error("Failed to create sponsorship request");
+      }
+    } catch (error) {
+      console.error("Sponsorship request failed:", error);
+      toast({
+        title: "Sponsorship Request Failed",
+        description: "Failed to create sponsorship request. Please try again.",
+        variant: "destructive",
       });
-    }, 1000);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handlePayByStudent = async () => {
     setProcessing(true);
     try {
-      // Get all students from the institution data
-      const students = [];
+      // First create student records
+      const studentsData = {
+        institute_id: institutionData.instituteId || 1, // You'll need to pass this from parent
+        students: []
+      };
+
+      // Extract students from sport teams
       if (institutionData.sportTeams) {
-        institutionData.sportTeams.forEach((team: any) => {
-          team.students.forEach((student: any) => {
-            students.push({
-              id: student.id || Math.random().toString(36).substr(2, 9),
-              name: `${student.fname} ${student.mname || ''} ${student.lname}`.trim(),
+        for (const team of institutionData.sportTeams) {
+          for (const student of team.students || []) {
+            studentsData.students.push({
+              fname: student.fname || student.firstName,
+              mname: student.mname || student.middleName,
+              lname: student.lname || student.lastName,
               email: student.email,
-              studentId: student.student_id,
-              sport: team.sport,
-              category: team.category,
-              amount: 500 // Default fee per student
+              student_id: student.student_id || student.studentId,
+              dob: student.dob || student.dateOfBirth,
+              gender: student.gender,
+              phone: student.phone || student.phoneNumber
             });
-          });
-        });
-      } else if (institutionData.students) {
-        // Fallback for old data structure
-        institutionData.students.forEach((student: any) => {
-          students.push({
-            id: student.id || Math.random().toString(36).substr(2, 9),
-            name: `${student.fname} ${student.mname || ''} ${student.lname}`.trim(),
-            email: student.email,
-            studentId: student.student_id,
-            sport: "General Registration",
-            category: "Student",
-            amount: 500
-          });
-        });
-      }
-
-      console.log('🔄 Processing payment emails for students:', students);
-
-      // Send payment emails to all students
-      let emailsSent = 0;
-      const failedEmails = [];
-      
-      for (const student of students) {
-        try {
-          const emailData = {
-            studentName: student.name,
-            studentEmail: student.email,
-            studentId: student.studentId,
-            sport: student.sport,
-            category: student.category,
-            amount: student.amount,
-            institutionName: institutionData.institutionDetails?.institutionName || institutionData.institutionName || "Your Institution",
-            institutionEmail: institutionData.institutionDetails?.institutionEmail || institutionData.email || "contact@institution.com"
-          };
-          
-          console.log(`📧 Sending email to ${student.email}:`, emailData);
-          
-          // Call the payment email API with registration endpoint
-          const response = await fetch('/api/v1/payments/send-payment-link-registration', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(emailData)
-          });
-          
-          if (response.ok) {
-            emailsSent++;
-            console.log(`✅ Email sent successfully to ${student.email}`);
-          } else {
-            const errorText = await response.text();
-            console.error(`❌ Failed to send email to ${student.email}:`, response.status, errorText);
-            failedEmails.push(student.email);
           }
-        } catch (error) {
-          console.error(`❌ Error sending email to ${student.email}:`, error);
-          failedEmails.push(student.email);
         }
-        
-        // Add small delay between emails to avoid overwhelming the server
-        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      if (emailsSent === students.length) {
-        toast({
-          title: "Payment Instructions Sent",
-          description: `Payment emails have been successfully sent to all ${students.length} registered students.`,
-        });
-      } else {
-        toast({
-          title: "Partial Success",
-          description: `Payment emails sent to ${emailsSent} out of ${students.length} students. ${failedEmails.length > 0 ? `Failed: ${failedEmails.join(', ')}` : ''}`,
-          variant: "destructive",
-        });
-      }
+      // Create students
+      const studentsResponse = await apiService.createStudentsFromInstitution(studentsData);
       
-      onComplete({
-        paymentType: "payByStudent",
-        totalFees: fees.totalFee,
-        studentsFee: fees.studentsFee,
-        sportsFee: fees.sportsFee,
-        emailsSent: emailsSent,
-        status: "payment_emails_sent",
-        accountCreated: true
-      });
+      if (studentsResponse.data && studentsResponse.data.success) {
+        // Now create payment requests for students
+        const studentPaymentData = {
+          institute_id: institutionData.instituteId || 1,
+          students: studentsResponse.data.data.students.map((student: any) => ({
+            student_id: student.student_id,
+            email: student.email,
+            name: student.name,
+            sport: "Multiple Sports", // You might want to specify which sport
+            amount: Math.ceil(fees.totalFee / studentsData.students.length) // Divide total fee among students
+          })),
+          total_amount: fees.totalFee
+        };
+
+        const paymentResponse = await apiService.createStudentPaymentRequests(studentPaymentData);
+        
+        if (paymentResponse.data && paymentResponse.data.success) {
+          toast({
+            title: "Students Created & Payment Instructions Sent ✅",
+            description: `Payment emails have been sent to ${paymentResponse.data.data.total_requests} students.`,
+          });
+          
+          onComplete({
+            paymentType: "payByStudent",
+            totalFees: fees.totalFee,
+            sportsFee: fees.sportsFee,
+            emailsSent: paymentResponse.data.data.total_requests,
+            status: "payment_emails_sent",
+            studentsCreated: studentsResponse.data.data.total_students,
+            paymentRequestsCreated: paymentResponse.data.data.total_requests
+          });
+        } else {
+          throw new Error("Failed to create payment requests");
+        }
+      } else {
+        throw new Error("Failed to create students");
+      }
     } catch (error) {
-      console.error('Error sending payment emails:', error);
+      console.error("Pay by student failed:", error);
       toast({
-        title: "Error",
-        description: "Failed to send payment emails. Please try again.",
+        title: "Pay by Student Failed",
+        description: "Failed to create students and send payment instructions. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -329,11 +381,7 @@ export const InstitutionPaymentStep = ({
                   </p>
                 ))
               ) : (
-                institutionData.selectedSports?.map((sport: any, index: number) => (
-                  <p key={index} className="text-sm text-muted-foreground">
-                    {sport.sport} - {sport.subCategory}
-                  </p>
-                )) || <p className="text-sm text-muted-foreground">No sports selected</p>
+                <p className="text-sm text-muted-foreground">No sports selected</p>
               )}
             </div>
           </div>
@@ -349,27 +397,57 @@ export const InstitutionPaymentStep = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span>Students Registration Fee ({institutionData.sportTeams 
-                ? institutionData.sportTeams.reduce((total: number, team: any) => total + team.students.length, 0)
-                : institutionData.students?.length || 0
-              } × ₹{FEE_PER_STUDENT}):</span>
-              <span className="font-medium">₹{fees.studentsFee.toLocaleString()}</span>
+          {loadingFees ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                <span className="text-sm text-muted-foreground">Calculating fees...</span>
+              </div>
             </div>
-            
-            <div className="flex justify-between items-center">
-              <span>Sports Registration Fee ({institutionData.sportTeams?.length || institutionData.selectedSports?.length || 0} × ₹{FEE_PER_SPORT}):</span>
-              <span className="font-medium">₹{fees.sportsFee.toLocaleString()}</span>
+          ) : feeCalculation ? (
+            <div className="space-y-3">
+              {/* Sports Fees */}
+              {feeCalculation.breakdown?.sports_fees && feeCalculation.breakdown.sports_fees.length > 0 && (
+                <div className="space-y-2">
+                  {feeCalculation.breakdown.sports_fees.map((sport: any, index: number) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span>{sport.sport_name} ({sport.type}):</span>
+                      <span className="font-medium">₹{(sport.fee || 0).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Parent Fee */}
+              {feeCalculation.breakdown?.parent_fee > 0 && (
+                <div className="flex justify-between items-center">
+                  <span>Parent Pass Fee:</span>
+                  <span className="font-medium">₹{(feeCalculation.breakdown.parent_fee || 0).toLocaleString()}</span>
+                </div>
+              )}
+              
+              <Separator />
+              
+              <div className="flex justify-between items-center text-lg font-bold">
+                <span>Total Amount:</span>
+                <span className="text-primary">₹{fees.totalFee.toLocaleString()}</span>
+              </div>
             </div>
-            
-            <Separator />
-            
-            <div className="flex justify-between items-center text-lg font-bold">
-              <span>Total Amount:</span>
-              <span className="text-primary">₹{fees.totalFee.toLocaleString()}</span>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span>Sports Registration Fee ({institutionData.sportTeams?.length || 0} × ₹{FEE_PER_SPORT}):</span>
+                <span className="font-medium">₹{fees.sportsFee.toLocaleString()}</span>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex justify-between items-center text-lg font-bold">
+                <span>Total Amount:</span>
+                <span className="text-primary">₹{fees.totalFee.toLocaleString()}</span>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

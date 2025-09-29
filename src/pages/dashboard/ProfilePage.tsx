@@ -18,6 +18,8 @@ const ProfilePage = () => {
   const [editing, setEditing] = useState(false);
   const [profileData, setProfileData] = useState<any>(null);
   const [fetching, setFetching] = useState(true);
+  const [documents, setDocuments] = useState<any>(null);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     fname: "",
@@ -77,12 +79,84 @@ const ProfilePage = () => {
     }
   };
 
+  // Fetch student documents
+  const fetchDocuments = async () => {
+    if (!student?.id) return;
+    
+    try {
+      setDocumentsLoading(true);
+      console.log('🔄 Fetching documents for student ID:', student.id);
+      
+      const response = await apiService.getStudentDocuments(student.id);
+      console.log('📄 Documents API Response:', response);
+      
+      if (response.data && (response.data as any).success) {
+        const data = (response.data as any).data;
+        console.log('📋 Documents Data:', data);
+        setDocuments(data);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching documents:', error);
+      // Don't show error toast for documents as they might not exist
+      console.log('Documents might not exist for this student');
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchProfileData();
+    fetchDocuments();
   }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Handle document viewing/downloading
+  const handleViewDocument = async (documentType: 'id_proof' | 'age_proof') => {
+    if (!student?.id) return;
+    
+    try {
+      console.log(`🔄 Downloading ${documentType} for student ID:`, student.id);
+      
+      const response = await apiService.downloadDocument(student.id, documentType);
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Get filename from response headers or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${documentType}.pdf`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Success",
+        description: `${documentType === 'id_proof' ? 'Student ID' : 'Age Proof'} document downloaded successfully`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error(`❌ Error downloading ${documentType}:`, error);
+      toast({
+        title: "Error",
+        description: `Failed to download ${documentType === 'id_proof' ? 'Student ID' : 'Age Proof'} document`,
+        variant: "destructive",
+      });
+    }
   };
 
   if (fetching) {
@@ -414,33 +488,88 @@ const ProfilePage = () => {
           <CardDescription>View and manage your uploaded documents</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <h4 className="font-medium">Student ID Document</h4>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground mb-2">
-                  Student ID uploaded successfully
-                </p>
-                <Button variant="outline" size="sm">
-                  View Document
-                </Button>
-              </div>
+          {documentsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span className="text-muted-foreground">Loading documents...</span>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Student ID Document */}
+              <div className="space-y-3">
+                <h4 className="font-medium">Student ID Document</h4>
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                  {documents?.id_proof?.has_content ? (
+                    <>
+                      <Upload className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                      <p className="text-sm text-green-600 mb-2">
+                        Student ID uploaded successfully
+                      </p>
+                      {documents.id_proof.filename && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {documents.id_proof.filename}
+                        </p>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewDocument('id_proof')}
+                      >
+                        View Document
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        No Student ID document uploaded
+                      </p>
+                      <Button variant="outline" size="sm" disabled>
+                        View Document
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
 
-            <div className="space-y-3">
-              <h4 className="font-medium">Age Proof Document</h4>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground mb-2">
-                  Age proof uploaded successfully
-                </p>
-                <Button variant="outline" size="sm">
-                  View Document
-                </Button>
+              {/* Age Proof Document */}
+              <div className="space-y-3">
+                <h4 className="font-medium">Age Proof Document</h4>
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                  {documents?.age_proof?.has_content ? (
+                    <>
+                      <Upload className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                      <p className="text-sm text-green-600 mb-2">
+                        Age proof uploaded successfully
+                      </p>
+                      {documents.age_proof.filename && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {documents.age_proof.filename}
+                        </p>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewDocument('age_proof')}
+                      >
+                        View Document
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        No Age proof document uploaded
+                      </p>
+                      <Button variant="outline" size="sm" disabled>
+                        View Document
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

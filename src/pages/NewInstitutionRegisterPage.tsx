@@ -6,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserTypeSelection } from "@/components/registration/UserTypeSelection";
 import { EmailOtpStep } from "@/components/registration/EmailOtpStep";
 import { InstitutionDetailsStep } from "@/components/institution-registration/InstitutionDetailsStep";
-import { SportsSubCategoriesStep } from "@/components/institution-registration/SportsSubCategoriesStep";
 import { SportStudentAddStep } from "@/components/institution-registration/SportStudentAddStep";
 import { InstitutionPaymentStep } from "@/components/institution-registration/InstitutionPaymentStep";
 import { InstitutionRegistrationSidebar } from "@/components/registration/InstitutionRegistrationSidebar";
@@ -19,7 +18,7 @@ export const NewInstitutionRegisterPage = () => {
   const { toast } = useToast();
   
   // Initialize state from localStorage or defaults
-  const [currentStep, setCurrentStep] = useState<"userType" | "email" | 1 | 2 | 3 | 4>(() => {
+  const [currentStep, setCurrentStep] = useState<"userType" | "email" | 1 | 3 | 4>(() => {
     const savedStep = localStorage.getItem('institution_registration_step');
     const savedEmail = localStorage.getItem('institution_registration_email');
     
@@ -30,8 +29,8 @@ export const NewInstitutionRegisterPage = () => {
         return savedStep;
       } else {
         const stepNumber = parseInt(savedStep);
-        if (stepNumber === 1 || stepNumber === 2 || stepNumber === 3 || stepNumber === 4) {
-          return stepNumber as 1 | 2 | 3 | 4;
+        if (stepNumber === 1 || stepNumber === 3 || stepNumber === 4) {
+          return stepNumber as 1 | 3 | 4;
         }
       }
     } else if (savedEmail) {
@@ -85,8 +84,17 @@ export const NewInstitutionRegisterPage = () => {
               console.log("📥 Checkpoint loaded:", checkpointData);
               
               if (checkpointData.step > 0) {
+                // Map old step numbers to new step numbers
+                let mappedStep = checkpointData.step;
+                if (checkpointData.step === 4) {
+                  mappedStep = 3; // Old step 4 (Payment) becomes new step 3
+                } else if (checkpointData.step === 3) {
+                  mappedStep = 3; // Old step 3 (Add Students) becomes new step 3
+                }
+                // Step 2 (Sports & Categories) is removed, so we skip it
+                
                 // Update state with checkpoint data
-                setCurrentStep(checkpointData.step as 1 | 2 | 3 | 4);
+                setCurrentStep(mappedStep as 1 | 3 | 4);
                 setCompletedSteps(checkpointData.completed_steps || []);
                 setRegistrationData(prev => ({
                   ...prev,
@@ -95,7 +103,7 @@ export const NewInstitutionRegisterPage = () => {
                 
                 toast({
                   title: "Progress Restored! 📋",
-                  description: `Welcome back! We've restored your progress from step ${checkpointData.step}.`,
+                  description: `Welcome back! We've restored your progress from step ${mappedStep}.`,
                 });
               }
             }
@@ -126,6 +134,12 @@ export const NewInstitutionRegisterPage = () => {
         
         await apiService.saveRegistrationCheckpoint(registrationData.email, step, completeData);
         console.log("✅ Checkpoint saved successfully");
+        
+        // Show success message to user
+        toast({
+          title: "Progress Saved ✅",
+          description: `Your progress for step ${step} has been saved successfully.`,
+        });
       } catch (error) {
         console.error("❌ Failed to save checkpoint:", error);
         // Don't show error to user, localStorage backup is still working
@@ -171,65 +185,91 @@ export const NewInstitutionRegisterPage = () => {
       if (registrationData.email && !isLoadingProgress) {
         setIsLoadingProgress(true);
         try {
-          const response = await apiService.getInstitutionRegistrationProgress(registrationData.email);
-          if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
-            const responseData = response.data as any;
-            if (responseData.success && responseData.data) {
-              const progressData = responseData.data;
-              console.log("Loading progress data:", progressData);
-            setRegistrationData(prev => ({
-              ...prev,
-              institutionDetails: progressData.institution_details || null,
-              selectedSports: progressData.sports_subcategories || null,
-              students: progressData.students || null,
-              payment: progressData.payment_info || null
-            }));
+          // Load registration progress from proper API
+          const progressResponse = await apiService.getInstitutionRegistrationProgress(registrationData.email);
+          console.log("Progress response:", progressResponse);
+          
+          if (progressResponse.data && typeof progressResponse.data === 'object' && 'success' in progressResponse.data && progressResponse.data.success) {
+            const progressData = (progressResponse.data as any).data;
+            console.log("Loading progress data:", progressData);
             
-            // Set completed steps based on saved data
-            // Frontend has 3 steps: 1=Institution, 2=Students, 3=Payment
-            const completedSteps = [];
-            if (progressData.institution_details) completedSteps.push(1); // Institution Details
-            if (progressData.students && progressData.students.sportTeams && progressData.students.sportTeams.length > 0) completedSteps.push(2); // Add Students
-            if (progressData.payment_info) completedSteps.push(3); // Payment
-            setCompletedSteps(completedSteps);
-            
-            // Set current step based on checkpoint data
-            if (progressData.step) {
-              // Map backend step to frontend step
-              // Backend: 1=Institution, 2=Contact, 3=Students, 4=Payment
-              // Frontend: 1=Institution, 2=Students, 3=Payment
-              let frontendStep: 1 | 2 | 3 | 4;
-              if (progressData.step === 1) {
-                frontendStep = 1; // Institution Details
-              } else if (progressData.step === 2) {
-                frontendStep = 2; // Contact Person (skip in frontend, go to Students)
-              } else if (progressData.step === 3) {
-                frontendStep = 2; // Add Students
-              } else if (progressData.step === 4) {
-                frontendStep = 3; // Payment
-              } else {
-                frontendStep = 1; // Default
+            if (progressData) {
+                // Update current step based on progress
+                if (progressData.current_phase > 0) {
+                  const phase = progressData.current_phase;
+                  if (phase === 1) {
+                    setCurrentStep(1); // Institution Details
+                  } else if (phase === 2) {
+                    // Backend step 2 (Contact Person) maps to frontend step 3 (Add Students)
+                    setCurrentStep(3);
+                  } else if (phase === 3) {
+                    setCurrentStep(3); // Add Students
+                  } else if (phase === 4) {
+                    setCurrentStep(4); // Payment
+                  }
+                }
+              
+              // Update completed steps - map backend phases to frontend steps
+              if (progressData.completed_phases && Array.isArray(progressData.completed_phases)) {
+                const mappedSteps = progressData.completed_phases.map(phase => {
+                  if (phase === 1) return 1; // Institution Details
+                  if (phase === 2) return 1; // Backend step 2 (Contact Person) maps to frontend step 1 completion
+                  if (phase === 3) return 3; // Add Students
+                  if (phase === 4) return 4; // Payment
+                  return phase;
+                }).filter((step, index, self) => self.indexOf(step) === index); // Remove duplicates
+                
+                setCompletedSteps(mappedSteps);
               }
-              setCurrentStep(frontendStep);
+              
+              // Update registration data with progress data
+              // Handle nested data structure from backend
+              let institutionDetails = null;
+              if (progressData.institution_details) {
+                if (progressData.institution_details.institutionDetails) {
+                  // Data is nested: institution_details.institutionDetails
+                  institutionDetails = progressData.institution_details.institutionDetails;
+                } else {
+                  // Data is directly in institution_details
+                  institutionDetails = progressData.institution_details;
+                }
+              }
+              
+              setRegistrationData(prev => ({
+                ...prev,
+                institutionDetails: institutionDetails,
+                students: progressData.students || null,
+                payment: progressData.payment_info || null,
+                instituteId: progressData.institute_id || null
+              }));
+              
+              console.log("🔍 Debug - Loaded students data:", progressData.students);
+              console.log("🔍 Debug - Loaded sportTeams:", progressData.students?.sportTeams);
+              
+              console.log("✅ Registration progress loaded successfully");
             } else {
-              // Determine current step based on completed steps
-              if (completedSteps.length === 0) {
-                setCurrentStep(1); // Institution Details
-              } else if (completedSteps.length === 1) {
-                setCurrentStep(2); // Add Students
-              } else if (completedSteps.length === 2) {
-                setCurrentStep(3); // Payment
+              console.log("⚠️ No progress data found, using localStorage data");
+              // Don't reset to step 1 if we have localStorage data
+              const savedStep = localStorage.getItem('institution_registration_step');
+              const savedEmail = localStorage.getItem('institution_registration_email');
+              
+              if (savedEmail === registrationData.email && savedStep) {
+                console.log("Using saved step from localStorage:", savedStep);
+                // Keep the current step from localStorage
               } else {
-                setCurrentStep(3); // All done, stay on Payment
+                console.log("No saved data found, starting from step 1");
               }
-            }
-            
-            console.log("Completed steps set to:", completedSteps);
-            console.log("Current step set to:", progressData.step || "calculated");
             }
           }
         } catch (error) {
-          console.error('Error loading registration progress:', error);
+          console.error("❌ Error loading registration progress:", error);
+          // Don't reset to step 1 on error, keep localStorage data
+          const savedStep = localStorage.getItem('institution_registration_step');
+          const savedEmail = localStorage.getItem('institution_registration_email');
+          
+          if (savedEmail === registrationData.email && savedStep) {
+            console.log("Using saved step from localStorage after error:", savedStep);
+          }
         } finally {
           setIsLoadingProgress(false);
         }
@@ -237,13 +277,14 @@ export const NewInstitutionRegisterPage = () => {
     };
 
     loadProgress();
-  }, [registrationData.email]); // Keep the dependency but add isLoadingProgress check
+  }, [registrationData.email]);
 
   // Save registration progress (sports step removed)
   const saveProgress = async (stepData: any, step: number) => {
     if (!registrationData.email) return;
 
     try {
+      // Prepare progress data for the proper API
       const progressData = {
         email: registrationData.email,
         current_phase: step,
@@ -254,9 +295,12 @@ export const NewInstitutionRegisterPage = () => {
         payment_info: step === 4 ? stepData : registrationData.payment
       };
 
+      // Save to proper registration progress system
       await apiService.saveInstitutionRegistrationProgress(progressData);
+      console.log("✅ Registration progress saved successfully for step:", step);
     } catch (error) {
-      console.error('Error saving registration progress:', error);
+      console.error('❌ Error saving registration progress:', error);
+      // Don't show error to user, just log it
     }
   };
 
@@ -286,7 +330,6 @@ export const NewInstitutionRegisterPage = () => {
       email: "",
       password: "",
       institutionDetails: null,
-      selectedSports: null,
       students: null,
       payment: null,
     });
@@ -297,11 +340,8 @@ export const NewInstitutionRegisterPage = () => {
   };
 
   const handleEmailComplete = (email: string) => {
-    console.log("handleEmailComplete called with email:", email);
-    console.log("Current step before update:", currentStep);
     setRegistrationData(prev => ({ ...prev, email }));
     setCurrentStep(1);
-    console.log("Current step set to:", 1);
     toast({
       title: "Email Verified Successfully",
       description: "Please complete your institution details.",
@@ -335,14 +375,18 @@ export const NewInstitutionRegisterPage = () => {
     // Save progress to database
     await saveProgress(data, step);
     
-    // Save checkpoint to server
-    await saveCheckpointToServer(step, data);
+    // Save checkpoint to server with complete registration data
+    const completeData = {
+      ...registrationData,
+      [stepKey]: data
+    };
+    await saveCheckpointToServer(step, completeData);
 
-    // Move to next step (skip step 2). On step 4, also finalize create in DB
+    // Move to next step. On step 4, also finalize create in DB
     if (step === 1) {
-      setCurrentStep(3);
+      setCurrentStep(3); // Institution Details -> Add Students
     } else if (step === 3) {
-      setCurrentStep(4);
+      setCurrentStep(4); // Add Students -> Payment
     } else if (step === 4) {
       // Attempt to persist institution to DB if not already saved
       try {
@@ -364,7 +408,7 @@ export const NewInstitutionRegisterPage = () => {
         };
 
         const resp = await apiService.createInstitute(instituteData);
-        const ok = resp?.data?.success === true;
+        const ok = (resp?.data as any)?.success === true;
         if (ok) {
           toast({
             title: "Institution saved",
@@ -373,7 +417,7 @@ export const NewInstitutionRegisterPage = () => {
         } else {
           toast({
             title: "Save failed",
-            description: resp?.data?.message || "Could not store institution in database.",
+            description: (resp?.data as any)?.message || "Could not store institution in database.",
             variant: "destructive",
           });
         }
@@ -392,9 +436,9 @@ export const NewInstitutionRegisterPage = () => {
     if (step === 1) {
       setCurrentStep("email");
     } else if (step === 3) {
-      setCurrentStep(1);
+      setCurrentStep(1); // Add Students -> Institution Details
     } else if (step === 4) {
-      setCurrentStep(3);
+      setCurrentStep(3); // Payment -> Add Students
     }
   };
 
@@ -434,20 +478,67 @@ export const NewInstitutionRegisterPage = () => {
         description: finalData.institutionDetails?.description,
         vision: finalData.institutionDetails?.vision,
         mission: finalData.institutionDetails?.mission,
-        // Sports and students data
-        selectedSports: finalData.selectedSports,
-        students: finalData.students,
+        // Students data - flatten sportTeams to individual students
+        students: finalData.students?.sportTeams ? 
+          finalData.students.sportTeams.flatMap((team: any) => 
+            team.students.map((student: any) => ({
+              fname: student.fname,
+              mname: student.mname,
+              lname: student.lname,
+              student_id: student.student_id,
+              email: student.email,
+              dob: student.dob,
+              gender: student.gender,
+              phone: student.phone,
+              address: student.address || "",
+              // Add sport information
+              sport: team.sport,
+              sportType: team.sportType,
+              category: team.category,
+              subCategory: team.subCategory,
+              ageFrom: team.ageFrom,
+              ageTo: team.ageTo
+            }))
+          ) : [],
         payment: finalData.payment
       };
 
+      console.log("🔍 Debug - Creating institute with data:", instituteData);
+      console.log("🔍 Debug - Students data being sent:", instituteData.students);
+      
       const response = await apiService.createInstitute(instituteData);
+      
+      let instituteId = null;
+      let isExisting = false;
       
       if (response.data && typeof response.data === 'object' && 'success' in response.data && response.data.success) {
         const responseData = response.data as any;
-        const instituteId = responseData.data?.id;
+        instituteId = responseData.data?.id;
+      } else {
+        // Check if it's a duplicate email error
+        const responseData = response.data as any;
+        if (responseData?.error_code === "EMAIL_EXISTS") {
+          // Institute already exists, get the existing institute ID
+          try {
+            const existingInstituteResponse = await apiService.getInstituteByEmail(finalData.email);
+            if ((existingInstituteResponse.data as any)?.success) {
+              instituteId = (existingInstituteResponse.data as any).data?.id;
+              isExisting = true;
+              console.log("Using existing institute ID:", instituteId);
+            }
+          } catch (error) {
+            console.error("Failed to get existing institute:", error);
+          }
+        }
         
+        if (!instituteId) {
+          throw new Error(responseData?.message || "Registration failed");
+        }
+      }
+      
+      if (instituteId) {
         toast({
-          title: "Institution Registration Complete! 🎉",
+          title: isExisting ? "Registration Completed! 🎉" : "Institution Registration Complete! 🎉",
           description: `Your Institution ID is: ${instituteId}`,
         });
       } else if (response.data && typeof response.data === 'object' && 'error_code' in response.data && response.data.error_code === 'EMAIL_EXISTS') {
@@ -489,25 +580,14 @@ export const NewInstitutionRegisterPage = () => {
   }
 };
 
-  // Debug localStorage state
-  console.log("Current localStorage state:");
-  console.log("- institution_registration_step:", localStorage.getItem('institution_registration_step'));
-  console.log("- institution_registration_email:", localStorage.getItem('institution_registration_email'));
-  console.log("- institution_registration_data:", localStorage.getItem('institution_registration_data'));
-  console.log("Current step:", currentStep, "Type:", typeof currentStep);
-  console.log("Registration data:", registrationData);
 
   if (currentStep === "userType") {
-    console.log("Rendering UserTypeSelection");
     return <UserTypeSelection onTypeSelect={handleUserTypeSelect} />;
   }
 
   if (currentStep === "email") {
-    console.log("Rendering EmailOtpStep");
     return <EmailOtpStep onComplete={handleEmailComplete} onBack={handleEmailBack} userType="institution" purpose="registration" />;
   }
-
-  console.log("Rendering main registration flow with currentStep:", currentStep);
 
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
@@ -535,53 +615,41 @@ export const NewInstitutionRegisterPage = () => {
       <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
           {currentStep === 1 && (
-            <>
-              {console.log("✅ Rendering InstitutionDetailsStep - currentStep === 1 is true")}
-              {console.log("Passing to InstitutionDetailsStep:", {
-                initialData: { 
-                  institutionEmail: registrationData.email,
-                  ...(registrationData.institutionDetails || {})
-                },
-                verificationStatus
-              })}
-              <InstitutionDetailsStep
-                initialData={{ 
-                  institutionEmail: registrationData.email,
-                  ...(registrationData.institutionDetails || {})
-                }}
-                verificationStatus={verificationStatus}
-                onComplete={(data) => handleStepComplete(1, data)}
-                onVerificationChange={setVerificationStatus}
-                onBack={() => handleBack(1)}
-              />
-            </>
-          )}
-          
-          {currentStep !== 1 && (
-            <>
-              {console.log("❌ Not rendering InstitutionDetailsStep - currentStep !== 1")}
-              {console.log("currentStep value:", currentStep, "Type:", typeof currentStep)}
-            </>
-          )}
-          
-          {currentStep === 2 && (
-            <SportStudentAddStep
-              initialData={registrationData.students}
-              onComplete={(data) => handleStepComplete(2, data)}
-              onBack={() => handleBack(2)}
+            <InstitutionDetailsStep
+              initialData={{ 
+                institutionEmail: registrationData.email,
+                ...(registrationData.institutionDetails || {})
+              }}
+              verificationStatus={verificationStatus}
+              onComplete={(data) => handleStepComplete(1, data)}
+              onVerificationChange={setVerificationStatus}
+              onBack={() => handleBack(1)}
             />
           )}
           
+          {/* SportsSubCategoriesStep removed */}
+          
           {currentStep === 3 && (
-            <InstitutionPaymentStep
-              institutionData={{
-                ...registrationData.institutionDetails,
-                selectedSports: registrationData.selectedSports?.selectedSports || [],
+            <SportStudentAddStep
+              initialData={{
                 students: registrationData.students?.students || [],
                 sportTeams: registrationData.students?.sportTeams || [],
               }}
-              onComplete={handleFinalComplete}
+              onComplete={(data) => handleStepComplete(3, data)}
               onBack={() => handleBack(3)}
+            />
+          )}
+          
+          {currentStep === 4 && (
+            <InstitutionPaymentStep
+              institutionData={{
+                ...registrationData.institutionDetails,
+                students: registrationData.students?.students || [],
+                sportTeams: registrationData.students?.sportTeams || [],
+                instituteId: registrationData.instituteId,
+              }}
+              onComplete={handleFinalComplete}
+              onBack={() => handleBack(4)}
               loading={false}
             />
           )}

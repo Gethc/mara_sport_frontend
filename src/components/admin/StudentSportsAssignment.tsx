@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Trophy, Plus, Trash2, Users, Target, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
-import { validateAgeForAgeGroup } from "@/lib/ageValidation";
 
 interface StudentSportsAssignmentProps {
   selectedSports: Array<{
@@ -22,6 +21,8 @@ interface StudentSportsAssignmentProps {
     subCategoryName: string;
     ageGroup: string;
     gender: string;
+    fee?: number;
+    paymentStatus?: string;
   }>;
   onSportsChange: (sports: any[]) => void;
   studentAge?: number;
@@ -49,8 +50,8 @@ export const StudentSportsAssignment = ({
   const [selectedAgeGroup, setSelectedAgeGroup] = useState("");
   const [selectedGender, setSelectedGender] = useState("Open");
 
-  // Age groups for selection
-  const allAgeGroups = ["U6", "U8", "U10", "U12", "U14", "U16", "U18", "U20", "Senior"];
+  // Age groups for selection (restricted to 9-19 years)
+  const allAgeGroups = ["U9", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17", "U18", "U19"];
   const [availableAgeGroups, setAvailableAgeGroups] = useState<string[]>(allAgeGroups);
   const genderOptions = ["Male", "Female", "Open"];
   const sportTypes = ["Individual", "Team"];
@@ -62,8 +63,52 @@ export const StudentSportsAssignment = ({
   const fetchSports = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getSports();
-      setSports((response.data as any[]) || []);
+      
+      // Check if user is authenticated
+      const authToken = localStorage.getItem('authToken');
+      console.log("🔍 StudentSportsAssignment: Auth token check:", authToken ? "Token found" : "No token found");
+      
+      let response;
+      if (authToken && authToken.trim() !== '') {
+        // Use authenticated endpoint if logged in
+        console.log("🔍 StudentSportsAssignment: Using authenticated endpoint: getSports");
+        response = await apiService.getSports();
+      } else {
+        // Use public endpoint if not logged in
+        console.log("🔍 StudentSportsAssignment: No auth token found, using public sports API");
+        response = await apiService.getSportsPublic();
+      }
+      
+      console.log("🔍 StudentSportsAssignment: Sports response:", response);
+      
+      // Handle both response formats
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          console.log("🔍 StudentSportsAssignment: Setting sports data:", data.data);
+          // Handle different data structures
+          if (Array.isArray(data.data)) {
+            setSports(data.data);
+          } else if (data.data.sports && Array.isArray(data.data.sports)) {
+            setSports(data.data.sports);
+          } else {
+            setSports([]);
+          }
+        } else {
+          console.log("🔍 StudentSportsAssignment: No sports data in response");
+          setSports([]);
+        }
+      } else {
+        console.log("🔍 StudentSportsAssignment: Setting sports data from direct response:", response.data);
+        // Handle direct response format
+        if (Array.isArray(response.data)) {
+          setSports(response.data);
+        } else if (response.data && response.data.sports && Array.isArray(response.data.sports)) {
+          setSports(response.data.sports);
+        } else {
+          setSports([]);
+        }
+      }
     } catch (error) {
       console.error('Error fetching sports:', error);
       toast({
@@ -78,18 +123,42 @@ export const StudentSportsAssignment = ({
 
   const fetchCategories = async (sportId: string) => {
     try {
-      const response = await apiService.getSportCategories(parseInt(sportId));
-      setCategories((response.data as any[]) || []);
+      console.log("🔍 StudentSportsAssignment: Fetching categories for sport:", sportId);
+      const response = await apiService.getSportCategoriesPublic(parseInt(sportId));
+      console.log("🔍 StudentSportsAssignment: Categories response:", response);
+      
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          setCategories(data.data || []);
+        } else {
+          setCategories([]);
+        }
+      } else {
+        setCategories((response.data as any[]) || []);
+      }
     } catch (error) {
       console.error('Error fetching categories:', error);
       setCategories([]);
     }
   };
 
-  const fetchSubCategories = async (categoryId: string) => {
+  const fetchSubCategories = async (sportId: string, categoryId: string) => {
     try {
-      const response = await apiService.getSubCategories(parseInt(categoryId));
-      setSubCategories((response.data as any[]) || []);
+      console.log("🔍 StudentSportsAssignment: Fetching subcategories for sport:", sportId, "category:", categoryId);
+      const response = await apiService.getSubCategoriesPublic(parseInt(sportId), parseInt(categoryId));
+      console.log("🔍 StudentSportsAssignment: Subcategories response:", response);
+      
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          setSubCategories(data.data || []);
+        } else {
+          setSubCategories([]);
+        }
+      } else {
+        setSubCategories((response.data as any[]) || []);
+      }
     } catch (error) {
       console.error('Error fetching sub-categories:', error);
       setSubCategories([]);
@@ -98,6 +167,12 @@ export const StudentSportsAssignment = ({
 
   const fetchCategoriesBySportType = async (sportType: string) => {
     try {
+      // Ensure sports is an array before filtering
+      if (!Array.isArray(sports)) {
+        console.log("🔍 StudentSportsAssignment: Sports is not an array:", sports);
+        return;
+      }
+      
       // Get all sports of the selected type
       const sportsOfType = sports.filter(sport => 
         sport.type === sportType || sport.sportType === sportType
@@ -169,8 +244,8 @@ export const StudentSportsAssignment = ({
     setSelectedAgeGroup("");
     setSubCategories([]);
     
-    if (categoryId) {
-      fetchSubCategories(categoryId);
+    if (categoryId && selectedSport) {
+      fetchSubCategories(selectedSport, categoryId);
       // Auto-populate age groups based on category
       populateAgeGroupsForCategory(categoryId);
     }
@@ -182,19 +257,12 @@ export const StudentSportsAssignment = ({
     if (!selectedSportType) newErrors.push("Please select a sport type");
     if (!selectedSport) newErrors.push("Please select a sport");
     if (!selectedCategory) newErrors.push("Please select a category");
-    if (!selectedSubCategory) newErrors.push("Please select a sub-category");
     if (!selectedAgeGroup) newErrors.push("Please select an age group");
     if (!selectedGender) newErrors.push("Please select gender");
     
-    // Validate age if student age is provided
-    if (studentAge && selectedAgeGroup) {
-      const ageValidation = validateAgeForAgeGroup(studentAge, selectedAgeGroup, false);
-      if (!ageValidation.isValid) {
-        newErrors.push(ageValidation.message || "Student age does not match selected age group");
-      }
-    }
+    // Age validation removed - all age groups U9-U19 are available for selection
     
-    // Check for duplicates
+    // Check for duplicates (sub-category is optional)
     const duplicate = selectedSports.find(
       item => item.sportId === selectedSport && 
               item.categoryId === selectedCategory && 
@@ -207,9 +275,14 @@ export const StudentSportsAssignment = ({
       return;
     }
 
-    const sport = sports.find(s => s.id === selectedSport);
-    const category = categories.find(c => c.id === selectedCategory);
-    const subCategory = subCategories.find(sc => sc.id === selectedSubCategory);
+    const sport = Array.isArray(sports) ? sports.find(s => s.id === selectedSport) : null;
+    const category = Array.isArray(categories) ? categories.find(c => c.id === selectedCategory) : null;
+    const subCategory = Array.isArray(subCategories) ? subCategories.find(sc => sc.id === selectedSubCategory) : null;
+
+    // Get fee information - prioritize category fee, then sport fee
+    const rawFee = category?.fee || sport?.fee || 0;
+    const fee = Number(rawFee);
+    console.log("🔍 Fee calculation:", { categoryFee: category?.fee, sportFee: sport?.fee, rawFee, finalFee: fee });
 
     const newSportAssignment = {
       sportId: selectedSport,
@@ -220,7 +293,9 @@ export const StudentSportsAssignment = ({
       subCategoryId: selectedSubCategory,
       subCategoryName: subCategory?.name || "",
       ageGroup: selectedAgeGroup,
-      gender: selectedGender
+      gender: selectedGender,
+      fee: fee,
+      paymentStatus: "Pending"
     };
 
     onSportsChange([...selectedSports, newSportAssignment]);
@@ -244,16 +319,18 @@ export const StudentSportsAssignment = ({
   };
 
   const getEligibleAgeGroups = () => {
-    if (!studentAge) return availableAgeGroups;
-    
-    // Filter age groups based on student age and available age groups
-    return availableAgeGroups.filter(ageGroup => {
-      const ageValue = parseInt(ageGroup.replace('U', '').replace('Senior', '21'));
-      return studentAge <= ageValue;
-    });
+    // Always return all available age groups (U9 to U19)
+    return availableAgeGroups;
   };
 
-  if (loading) {
+  const formatFee = (fee: any): string => {
+    if (!fee) return "N/A";
+    const numFee = Number(fee);
+    if (isNaN(numFee)) return "N/A";
+    return `$${numFee.toFixed(2)}`;
+  };
+
+  if (loading || !Array.isArray(sports)) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-center">
@@ -318,7 +395,7 @@ export const StudentSportsAssignment = ({
                 <SelectValue placeholder="Select a sport" />
               </SelectTrigger>
               <SelectContent>
-                {sports
+                {Array.isArray(sports) && sports
                   .filter(sport => sport.type === selectedSportType || sport.sportType === selectedSportType)
                   .map((sport) => (
                     <SelectItem key={sport.id} value={sport.id}>
@@ -327,7 +404,7 @@ export const StudentSportsAssignment = ({
                   ))}
               </SelectContent>
             </Select>
-            {selectedSportType && (
+            {selectedSportType && Array.isArray(sports) && (
               <p className="text-xs text-muted-foreground">
                 {sports.filter(sport => sport.type === selectedSportType || sport.sportType === selectedSportType).length} {selectedSportType.toLowerCase()} sports available
               </p>
@@ -362,14 +439,14 @@ export const StudentSportsAssignment = ({
 
           {/* Sub-Category Selection */}
           <div className="space-y-2">
-            <Label htmlFor="subCategory">Sub-Category *</Label>
+            <Label htmlFor="subCategory">Sub-Category</Label>
             <Select 
               value={selectedSubCategory} 
               onValueChange={setSelectedSubCategory}
               disabled={!selectedCategory || subCategories.length === 0}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a sub-category" />
+                <SelectValue placeholder="Select a sub-category (optional)" />
               </SelectTrigger>
               <SelectContent>
                 {subCategories.map((subCategory) => (
@@ -432,7 +509,7 @@ export const StudentSportsAssignment = ({
           <div className="flex justify-end">
             <Button 
               onClick={addSport}
-              disabled={!selectedSportType || !selectedSport || !selectedCategory || !selectedSubCategory || !selectedAgeGroup || !selectedGender}
+              disabled={!selectedSportType || !selectedSport || !selectedCategory || !selectedAgeGroup || !selectedGender}
               className="w-full md:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -460,6 +537,8 @@ export const StudentSportsAssignment = ({
                   <TableHead>Sub-Category</TableHead>
                   <TableHead>Age Group</TableHead>
                   <TableHead>Gender</TableHead>
+                  <TableHead>Fee</TableHead>
+                  <TableHead>Payment Status</TableHead>
                   <TableHead className="w-16">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -483,6 +562,17 @@ export const StudentSportsAssignment = ({
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{sport.gender}</Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatFee(sport.fee)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={sport.paymentStatus === "Paid" ? "default" : "secondary"}
+                        className={sport.paymentStatus === "Paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
+                      >
+                        {sport.paymentStatus || "Pending"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Button

@@ -1,11 +1,12 @@
-// 
-
-
 /**
  * API Service for Mara Sports Festival
  * Handles all backend communication
  */
 
+// Old network configuration (commented out)
+// const API_BASE_URL = 'http://192.168.1.45:8000/api/v1';
+
+// Local backend configuration
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 interface ApiResponse<T> {
@@ -26,6 +27,7 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
+    console.log("🔍 Making API request to:", url);
     
     const defaultHeaders: Record<string, string> = {};
 
@@ -54,8 +56,35 @@ class ApiService {
     try {
       const response = await fetch(url, config);
       const data = await response.json();
+      
+      console.log("🔍 API Response:", {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
 
       if (!response.ok) {
+        // Log detailed error information
+        console.error('API Error Details:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          data,
+          headers: config.headers
+        });
+        
+        // Handle authentication errors by clearing invalid tokens
+        if (response.status === 401 && (data.detail === "Invalid authentication credentials" || data.detail === "Student not found" || data.detail === "Admin not found" || data.detail === "Institute not found")) {
+          console.log("🔑 Invalid token detected, clearing localStorage...");
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          // Optionally redirect to login page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+        }
+        
         // Surface server error details when available
         const serverMsg = (data && (data.detail || data.message || data.error)) as string | undefined;
         throw new Error(serverMsg || `HTTP error! status: ${response.status}`);
@@ -185,8 +214,19 @@ class ApiService {
   }
 
   async createStudent(studentData: any) {
-    return this.request('/students', {
+    return this.request('/admin/students', {
       method: 'POST',
+      body: JSON.stringify(studentData),
+    });
+  }
+
+  async getStudentDetails(studentId: number) {
+    return this.request(`/admin/students/${studentId}`);
+  }
+
+  async updateStudent(studentId: number, studentData: any) {
+    return this.request(`/admin/students/${studentId}`, {
+      method: 'PUT',
       body: JSON.stringify(studentData),
     });
   }
@@ -198,12 +238,6 @@ class ApiService {
     });
   }
 
-  async updateStudent(id: number, studentData: any) {
-    return this.request(`/students/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(studentData),
-    });
-  }
 
   async updateInstitutionStudent(id: number, studentData: any) {
     return this.request(`/students/institution/students/${id}`, {
@@ -269,6 +303,10 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(instituteData),
     });
+  }
+
+  async getInstituteByEmail(email: string) {
+    return this.request(`/institutes/by-email/${encodeURIComponent(email)}`);
   }
 
   async updateInstitute(id: number, instituteData: any) {
@@ -470,6 +508,13 @@ class ApiService {
     return this.request('/admin/institution-types');
   }
 
+  async addInstitution(institutionData: any) {
+    return this.request('/admin/institutions', {
+      method: 'POST',
+      body: JSON.stringify(institutionData),
+    });
+  }
+
   async getInstitutionDetails(institutionId: number) {
     return this.request(`/admin/institutions/${institutionId}`);
   }
@@ -486,16 +531,36 @@ class ApiService {
     return this.request(`/admin/students${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getAdminPayments(params?: { search?: string; status?: string; dateFrom?: string; dateTo?: string }) {
+  async getAdminPayments(params?: { 
+    status_filter?: string; 
+    type_filter?: string; 
+    search?: string; 
+    page?: number; 
+    limit?: number; 
+    sort_by?: string; 
+    sort_order?: string; 
+  }) {
     const queryParams = new URLSearchParams();
+    if (params?.status_filter) queryParams.append('status_filter', params.status_filter);
+    if (params?.type_filter) queryParams.append('type_filter', params.type_filter);
     if (params?.search) queryParams.append('search', params.search);
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.dateFrom) queryParams.append('date_from', params.dateFrom);
-    if (params?.dateTo) queryParams.append('date_to', params.dateTo);
+    if (params?.page !== undefined) queryParams.append('page', params.page.toString());
+    if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
+    if (params?.sort_by) queryParams.append('sort_by', params.sort_by);
+    if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
     
     const queryString = queryParams.toString();
     return this.request(`/admin/payments${queryString ? `?${queryString}` : ''}`);
   }
+
+  async getPaymentsSummary() {
+    return this.request('/admin/payments/summary');
+  }
+
+  async getPaymentDetails(paymentType: string, paymentId: number) {
+    return this.request(`/admin/payments/${paymentType}/${paymentId}`);
+  }
+
 
   async getAdminInvoices(params?: { search?: string; status?: string; institution?: string }) {
     const queryParams = new URLSearchParams();
@@ -505,6 +570,51 @@ class ApiService {
     
     const queryString = queryParams.toString();
     return this.request(`/admin/invoices${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // Institution-specific API methods
+  async getInstitutionStudents(params?: { search?: string; payment_status?: string; skip?: number; limit?: number }) {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.payment_status) queryParams.append('payment_status', params.payment_status);
+    if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
+    if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
+    
+    const queryString = queryParams.toString();
+    return this.request(`/institution/students${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getInstitutionPayments(params?: { search?: string; status?: string; skip?: number; limit?: number }) {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
+    if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
+    
+    const queryString = queryParams.toString();
+    return this.request(`/institution/payments${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getInstitutionSponsorships() {
+    return this.request('/institution/sponsorships');
+  }
+
+  async getInstitutionStats() {
+    return this.request('/institution/stats');
+  }
+
+  async getInstitutionSports(params?: { skip?: number; limit?: number; sport_type?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
+    if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
+    if (params?.sport_type) queryParams.append('sport_type', params.sport_type);
+    
+    const queryString = queryParams.toString();
+    return this.request(`/institution/sports${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getAvailableSports() {
+    return this.request('/institution/sports/available');
   }
 
   async getAdminSports(params?: { skip?: number; limit?: number }) {
@@ -600,6 +710,8 @@ class ApiService {
   async getInstitutionStudents() {
     return this.request('/students/institution/students');
   }
+
+  // Institution Sports Management APIs
 
   async addSportCategory(sportId: string, data: any) {
     return this.request(`/sports/${sportId}/categories`, {
@@ -754,6 +866,12 @@ class ApiService {
     });
   }
 
+  async getCompleteStudentData(email: string) {
+    return this.request(`/students/complete-data/${email}`, {
+      method: 'GET',
+    });
+  }
+
   async deleteStudentRegistrationProgress(email: string) {
     return this.request(`/registration/student/progress/${email}`, {
       method: 'DELETE',
@@ -841,7 +959,9 @@ class ApiService {
 
   async getSportsPublic(sportType?: string) {
     const params = sportType ? `?sport_type=${sportType}` : '';
-    return this.request(`/public/sports${params}`);
+    const endpoint = `/public/sports${params}`;
+    console.log("🔍 API Call - getSportsPublic:", endpoint);
+    return this.request(endpoint);
   }
 
   async getSportCategoriesPublic(sportId: number) {
@@ -850,6 +970,11 @@ class ApiService {
 
   async getSubCategoriesPublic(sportId: number, categoryId: number) {
     return this.request(`/public/sports/${sportId}/categories/${categoryId}/sub-categories`);
+  }
+
+  // Alias for getSubCategoriesPublic to match the expected method name
+  async getSubCategoriesBySport(sportId: number, categoryId: number) {
+    return this.getSubCategoriesPublic(sportId, categoryId);
   }
 
   // Document Upload APIs
@@ -961,8 +1086,22 @@ class ApiService {
     return this.request('/parent-passes/pricing-summary');
   }
 
+  // Age groups are now generated from sport data in frontend
+
   async getGenderOptions() {
     return this.request('/public/gender-options');
+  }
+
+  // Fee Calculation API
+  async calculateTotalFees(data: {
+    selectedSports: { sport_id: number }[];
+    parentCount: number;
+    parentAges?: number[];
+  }) {
+    return this.request('/fee-calculation/calculate-total-fees', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // OTP Management Methods (Development Only)
@@ -991,15 +1130,50 @@ class ApiService {
     return this.request('/checkpoint/save', {
       method: 'POST',
       body: JSON.stringify({
-        email: email,
-        step: step,
-        data: data
+        email,
+        step,
+        data
       }),
     });
   }
 
   async loadRegistrationCheckpoint(email: string) {
     return this.request(`/checkpoint/load/${email}`);
+  }
+
+  async createSponsorshipRequest(sponsorshipData: any) {
+    return this.request('/payment/institute/sponsorship-request', {
+      method: 'POST',
+      body: JSON.stringify(sponsorshipData),
+    });
+  }
+
+  async createStudentPaymentRequests(studentPaymentData: any) {
+    return this.request('/payment/institute/student-payment-requests', {
+      method: 'POST',
+      body: JSON.stringify(studentPaymentData),
+    });
+  }
+
+  async createInstitutePaymentRequest(paymentData: any) {
+    return this.request('/payment/institute/payment-request', {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    });
+  }
+
+  async createStudentsFromInstitution(studentsData: any) {
+    return this.request('/payment/students/create-from-institution', {
+      method: 'POST',
+      body: JSON.stringify(studentsData),
+    });
+  }
+
+  async calculateInstitutionFees(feeData: any) {
+    return this.request('/fee-calculation/calculate-institution-fees', {
+      method: 'POST',
+      body: JSON.stringify(feeData),
+    });
   }
 
   async clearRegistrationCheckpoint(email: string) {
@@ -1044,6 +1218,42 @@ class ApiService {
     return this.request(`/payments/institution/students/${studentId}/payment-status`);
   }
 
+  async updatePaymentStatus(paymentType: string, paymentId: number, status: string) {
+    return this.request(`/admin/payments/${paymentType}/${paymentId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getAdminInstitutionDetails(institutionId: number) {
+    return this.request(`/admin/institutions/${institutionId}`);
+  }
+
+  async updateInstitution(institutionId: number, data: any) {
+    return this.request(`/admin/institutions/${institutionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteInstitution(institutionId: number) {
+    return this.request(`/admin/institutions/${institutionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getInstitutionSports(institutionId: number) {
+    return this.request(`/admin/institutions/${institutionId}/sports`);
+  }
+
+  async getInstitutionStudents(params: { institution_id: number; limit?: number }) {
+    const queryParams = new URLSearchParams();
+    queryParams.append('institution_id', params.institution_id.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    
+    return this.request(`/admin/students?${queryParams.toString()}`);
+  }
+
   // Student login methods
   async sendStudentLoginOTP(data: { email: string }) {
     return this.request('/otp/send/student', {
@@ -1061,12 +1271,51 @@ class ApiService {
   async getStudentPrefillData(email: string) {
     return this.request(`/students/prefill/${email}`);
   }
-
   async updateInstitutionProfile(profileData: any) {
     return this.request('/institutes/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData),
     });
+  }
+
+  async addInstitutionSport(sportData: any) {
+    return this.request('/admin/institutions/sports', {
+      method: 'POST',
+      body: JSON.stringify(sportData),
+    });
+  }
+
+  async addInstitutionStudent(studentData: any) {
+    return this.request('/admin/institutions/students', {
+      method: 'POST',
+      body: JSON.stringify(studentData),
+    });
+  }
+
+  // Document-related methods
+  async getStudentDocuments(studentId: number) {
+    return this.request(`/documents/documents/${studentId}`);
+  }
+
+  async downloadDocument(studentId: number, documentType: 'id_proof' | 'age_proof') {
+    const url = `${this.baseURL}/documents/documents/${studentId}/download/${documentType}`;
+    const token = localStorage.getItem('authToken');
+    
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download document: ${response.statusText}`);
+    }
+
+    return response;
   }
 }
 

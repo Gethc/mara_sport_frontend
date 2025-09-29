@@ -94,8 +94,26 @@ class SportsService {
     }
 
     try {
-      const response = await apiService.getSports();
-      const sports = response.data;
+      // Check if user is authenticated
+      const authToken = localStorage.getItem('authToken');
+      
+      let response;
+      if (authToken && authToken.trim() !== '') {
+        // Use authenticated endpoint if logged in
+        response = await apiService.getSports();
+      } else {
+        // Use public endpoint if not logged in
+        response = await apiService.getSportsPublic();
+      }
+      
+      // Handle both response formats
+      let sports;
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        sports = data.success && data.data ? data.data : [];
+      } else {
+        sports = response.data;
+      }
       
       // Transform backend data to frontend format
       this.sportsCache = sports.map((sport: any) => ({

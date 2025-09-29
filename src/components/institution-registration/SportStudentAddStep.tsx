@@ -19,8 +19,8 @@ interface SportStudentAddStepProps {
 
 // Constants
 const SPORT_TYPES = ["Individual", "Team"];
-const AGE_CATEGORIES = ["U9", "U11", "U13", "U15", "U17", "U19"];
-const GENDER_OPTIONS = ["Open", "Male", "Female", "Mixed"];
+// Age categories are now loaded from API
+// Gender options are now loaded from API
 
 interface Student {
   fname: string;
@@ -57,16 +57,19 @@ interface SportTeam {
   subCategoryId?: number;
 }
 
-const genderOptions = ["Male", "Female", "Other"];
+// Gender options will be loaded from API
 
 export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportStudentAddStepProps) => {
   const { toast } = useToast();
   const [sportTeams, setSportTeams] = useState<SportTeam[]>(initialData?.sportTeams || []);
+  const [genderOptions, setGenderOptions] = useState<{value: string, label: string}[]>([]);
+  const [loadingGenderOptions, setLoadingGenderOptions] = useState(true);
   
   // State for API data
   const [sports, setSports] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [subCategories, setSubCategories] = useState<any[]>([]);
+  // Age groups will be generated from sport data
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentSportType, setCurrentSportType] = useState("Individual");
@@ -74,8 +77,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
   const [currentCategory, setCurrentCategory] = useState("");
   const [currentSubCategory, setCurrentSubCategory] = useState("");
   const [currentAgeFrom, setCurrentAgeFrom] = useState("");
-  const [currentAgeTo, setCurrentAgeTo] = useState("");
-  const [currentGender, setCurrentGender] = useState("Open");
+  const [currentGender, setCurrentGender] = useState("");
   
   const [currentStudent, setCurrentStudent] = useState<Student>({
     fname: "",
@@ -102,28 +104,29 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
   // Load sports data from API
   useEffect(() => {
     const fetchSports = async () => {
-      console.log("🔄 Loading sports data for student assignment...");
+      console.log("🔄 SportStudentAddStep: Loading sports data for student assignment...");
       setLoading(true);
       setError(null);
       try {
         const response = await apiService.getSportsPublic();
-        console.log("📥 Sports API response:", response);
+        console.log("📥 SportStudentAddStep: Sports API response:", response);
         if (response.data && typeof response.data === 'object' && 'success' in response.data) {
           const responseData = response.data as any;
           if (responseData.success && responseData.data) {
             const sportsData = responseData.data || [];
-            console.log("✅ Sports loaded:", sportsData);
+            console.log("✅ SportStudentAddStep: Sports loaded:", sportsData.length, "sports");
+            console.log("✅ SportStudentAddStep: First few sports:", sportsData.slice(0, 3));
             setSports(sportsData);
           } else {
-            console.log("❌ Failed to fetch sports data");
+            console.log("❌ SportStudentAddStep: Failed to fetch sports data - no data in response");
             setError("Failed to fetch sports data");
           }
         } else {
-          console.log("❌ Invalid response format");
+          console.log("❌ SportStudentAddStep: Invalid response format");
           setError("Failed to fetch sports data");
         }
       } catch (err) {
-        console.error("❌ Error fetching sports:", err);
+        console.error("❌ SportStudentAddStep: Error fetching sports:", err);
         setError("Failed to fetch sports data");
       } finally {
         setLoading(false);
@@ -133,16 +136,64 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
     fetchSports();
   }, []);
 
+  // Generate age groups from sport's age_from and age_to
+  const generateAgeGroups = (ageFrom: string, ageTo: string) => {
+    const from = parseInt(ageFrom);
+    const to = parseInt(ageTo);
+    
+    if (isNaN(from) || isNaN(to) || from > to) {
+      return [];
+    }
+    
+    const groups = [];
+    for (let age = from; age <= to; age++) {
+      groups.push({
+        value: age.toString(),
+        label: `U${age} (${age} years)`
+      });
+    }
+    
+    return groups;
+  };
+
+  // Load gender options from API
+  useEffect(() => {
+    const loadGenderOptions = async () => {
+      try {
+        const response = await apiService.getGenderOptions();
+        if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+          const responseData = response.data as any;
+          if (responseData.success && responseData.data) {
+            setGenderOptions(responseData.data);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load gender options:", error);
+        // Fallback to default options
+        setGenderOptions([
+          {value: "Male", label: "Male"},
+          {value: "Female", label: "Female"},
+          {value: "Other", label: "Other"}
+        ]);
+      } finally {
+        setLoadingGenderOptions(false);
+      }
+    };
+
+    loadGenderOptions();
+  }, []);
+
   // Load categories when sport changes
   useEffect(() => {
     const fetchCategories = async () => {
-      console.log("🔄 Loading categories for sport:", currentSport);
-      if (!currentSport) {
-        console.log("❌ No sport selected, clearing categories");
+      // Don't log or process if no sport is selected (initial state)
+      if (!currentSport || currentSport.trim() === "") {
         setCategories([]);
         setSubCategories([]);
         return;
       }
+      
+      console.log("🔄 Loading categories for sport:", currentSport);
 
       try {
         const selectedSport = sports.find(sport => sport.name === currentSport);
@@ -171,18 +222,22 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
       setCurrentSubCategory("");
     };
 
-    fetchCategories();
+    // Only fetch categories if sports are loaded and a sport is selected
+    if (sports.length > 0 && currentSport) {
+      fetchCategories();
+    }
   }, [currentSport, sports]);
 
   // Load sub-categories when category changes
   useEffect(() => {
     const fetchSubCategories = async () => {
-      console.log("🔄 Loading sub-categories for category:", currentCategory, "sport:", currentSport);
-      if (!currentCategory || !currentSport) {
-        console.log("❌ No category or sport selected, clearing sub-categories");
+      // Don't log or process if no category or sport is selected (initial state)
+      if (!currentCategory || !currentSport || currentCategory.trim() === "" || currentSport.trim() === "") {
         setSubCategories([]);
         return;
       }
+      
+      console.log("🔄 Loading sub-categories for category:", currentCategory, "sport:", currentSport);
 
       try {
         const selectedSport = sports.find(sport => sport.name === currentSport);
@@ -211,14 +266,32 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
       setCurrentSubCategory("");
     };
 
-    fetchSubCategories();
+    // Only fetch sub-categories if all required data is loaded
+    if (sports.length > 0 && categories.length > 0 && currentSport && currentCategory) {
+      fetchSubCategories();
+    }
   }, [currentCategory, currentSport, sports, categories]);
 
   // Get available data based on selections
-  const availableSports = sports.filter(sport => sport.type === currentSportType);
+  console.log("🔍 SportStudentAddStep: Current sport type:", currentSportType);
+  console.log("🔍 SportStudentAddStep: All sports:", sports.length);
+  console.log("🔍 SportStudentAddStep: Sports types:", [...new Set(sports.map(s => s.type))]);
+  
+  const filteredSports = sports.filter(sport => sport.type === currentSportType);
+  console.log("🔍 SportStudentAddStep: Filtered sports for type", currentSportType, ":", filteredSports.length);
+  
+  // Remove duplicates by sport name
+  const availableSports = filteredSports.filter((sport, index, self) => 
+    index === self.findIndex(s => s.name === sport.name)
+  );
+  console.log("🔍 SportStudentAddStep: Available sports (deduplicated):", availableSports.length);
   const availableCategories = categories;
   const availableSubCategories = subCategories;
-  const availableAgeGroups = AGE_CATEGORIES;
+  // Generate age groups based on selected sport
+  const selectedSportData = sports.find(sport => sport.name === currentSport);
+  const availableAgeGroups = selectedSportData 
+    ? generateAgeGroups(selectedSportData.age_from, selectedSportData.age_to)
+    : [];
 
   // Get maximum students allowed for a sport based on database data
   const getMaxStudents = (sportName: string, sportType: string, subCategory: string) => {
@@ -258,18 +331,8 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
     const newErrors: string[] = [];
     
     if (!currentSport) newErrors.push("Please select a sport");
-    if (!currentAgeFrom) newErrors.push("Please select age from");
-    if (!currentAgeTo) newErrors.push("Please select age to");
+    if (!currentAgeFrom) newErrors.push("Please select age group");
     if (!currentGender) newErrors.push("Please select gender");
-    
-    // Validate age range
-    if (currentAgeFrom && currentAgeTo) {
-      const ageFromIndex = AGE_CATEGORIES.indexOf(currentAgeFrom);
-      const ageToIndex = AGE_CATEGORIES.indexOf(currentAgeTo);
-      if (ageFromIndex > ageToIndex) {
-        newErrors.push("Age 'From' must be less than or equal to Age 'To'");
-      }
-    }
     
     // Find selected sport data
     const selectedSportData = sports.find(sport => sport.name === currentSport);
@@ -286,7 +349,6 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               team.categoryId === selectedCategoryData?.id && 
               team.subCategoryId === selectedSubCategoryData?.id &&
               team.ageFrom === currentAgeFrom &&
-              team.ageTo === currentAgeTo &&
               team.gender === currentGender
     );
     if (duplicate) newErrors.push("This sport combination is already added");
@@ -304,7 +366,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
       category: currentCategory || "",
       subCategory: currentSubCategory || "",
       ageFrom: currentAgeFrom,
-      ageTo: currentAgeTo,
+      ageTo: currentAgeFrom, // Use same age for both since user selects single age group
       gender: currentGender,
       students: [],
       maxStudents,
@@ -320,8 +382,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
     setCurrentCategory("");
     setCurrentSubCategory("");
     setCurrentAgeFrom("");
-    setCurrentAgeTo("");
-    setCurrentGender("Open");
+    setCurrentGender("");
     setErrors([]);
     
     toast({
@@ -555,9 +616,13 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
                   <SelectValue placeholder="Select a sport" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableSports.map((sport) => (
-                    <SelectItem key={sport.id} value={sport.name}>{sport.name}</SelectItem>
-                  ))}
+                  {availableSports.length > 0 ? (
+                    availableSports.map((sport) => (
+                      <SelectItem key={sport.id} value={sport.name}>{sport.name}</SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-sports" disabled>No sports available</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -604,36 +669,20 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ageFrom">Age From *</Label>
+              <Label htmlFor="ageGroup">Age Group *</Label>
               <Select 
                 value={currentAgeFrom} 
                 onValueChange={setCurrentAgeFrom}
                 disabled={!currentSport}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select age from" />
+                  <SelectValue placeholder="Select age group" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableAgeGroups.map((age) => (
-                    <SelectItem key={age} value={age}>{age}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ageTo">Age To *</Label>
-              <Select 
-                value={currentAgeTo} 
-                onValueChange={setCurrentAgeTo}
-                disabled={!currentSport}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select age to" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableAgeGroups.map((age) => (
-                    <SelectItem key={age} value={age}>{age}</SelectItem>
+                  {availableAgeGroups.map((ageGroup) => (
+                    <SelectItem key={ageGroup.value} value={ageGroup.value}>
+                      {ageGroup.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -649,16 +698,17 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Mixed">Mixed</SelectItem>
+                  {genderOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {currentSport && currentAgeFrom && currentAgeTo && currentGender && (
+          {currentSport && currentAgeFrom && currentGender && (
             <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
               <p className="text-sm text-blue-800 dark:text-blue-200">
                 <strong>Sport Info:</strong> {currentSport} ({currentSportType}) - 
@@ -671,10 +721,10 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
           <div className="flex justify-end">
             <Button 
               onClick={addSportTeam}
-              disabled={!currentSport || !currentAgeFrom || !currentAgeTo || !currentGender}
+              disabled={!currentSport || !currentAgeFrom || !currentGender}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Sport Team
+              Add Sports
             </Button>
           </div>
         </CardContent>
@@ -775,9 +825,13 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    {genderOptions.map((gender) => (
-                      <SelectItem key={gender} value={gender}>{gender}</SelectItem>
-                    ))}
+                    {loadingGenderOptions ? (
+                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                    ) : (
+                      genderOptions.map((gender) => (
+                        <SelectItem key={gender.value} value={gender.value}>{gender.label}</SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

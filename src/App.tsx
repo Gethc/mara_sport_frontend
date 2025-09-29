@@ -41,7 +41,9 @@ import AdminInvoices from "./pages/admin/AdminInvoices";
 import AdminSponsorships from "./pages/admin/AdminSponsorships";
 import AdminSports from "./pages/admin/AdminSports";
 import SportDetails from "./pages/admin/SportDetails";
-import StudentDetails from "./pages/admin/StudentDetails";
+import StudentDetailsPage from "./pages/admin/StudentDetailsPage";
+import PaymentDetailsPage from "./pages/admin/PaymentDetailsPage";
+import InstitutionDetailsPage from "./pages/admin/InstitutionDetailsPage";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 import { InstitutionProtectedRoute } from "./components/InstitutionProtectedRoute";
 
@@ -60,30 +62,8 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   // Check user role and redirect accordingly
-  const adminSession = localStorage.getItem('adminSession');
-  const institutionSession = localStorage.getItem('institutionSession');
   
-  if (adminSession) {
-    try {
-      const session = JSON.parse(adminSession);
-      if (session.role === 'admin') {
-        return <Navigate to="/admin" replace />;
-      }
-    } catch (error) {
-      console.error('Error parsing admin session:', error);
-    }
-  }
-  
-  if (institutionSession) {
-    try {
-      const session = JSON.parse(institutionSession);
-      if (session.role === 'institution') {
-        return <Navigate to="/institution" replace />;
-      }
-    } catch (error) {
-      console.error('Error parsing institution session:', error);
-    }
-  }
+ 
   
   // Default redirect for students
   return <Navigate to="/dashboard" replace />;
@@ -168,7 +148,9 @@ const App = () => (
               <Route path="admin-sponsorships" element={<AdminSponsorships />} />
               <Route path="admin-sports" element={<AdminSports />} />
               <Route path="admin-sports/:id" element={<SportDetails />} />
-              <Route path="admin-students/:id" element={<StudentDetails />} />
+              <Route path="admin-students/:studentId" element={<StudentDetailsPage />} />
+              <Route path="admin-institutions/:institutionId" element={<InstitutionDetailsPage />} />
+              <Route path="payment-details/:paymentType/:paymentId" element={<PaymentDetailsPage />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

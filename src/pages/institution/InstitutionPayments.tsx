@@ -64,21 +64,28 @@ const InstitutionPayments = () => {
   // Fetch students data
   const fetchStudents = async () => {
     try {
-      const response = await apiService.getInstitutionStudents();
-      console.log('Payment API Response:', response);
+      const response = await apiService.getInstitutionStudents({
+        search: searchTerm || undefined,
+        payment_status: filterStatus !== "all" ? filterStatus : undefined,
+      });
       
-      // Extract students from the nested response structure
-      let studentsData = [];
-      if (response.data && (response.data as any).data && (response.data as any).data.students) {
-        studentsData = (response.data as any).data.students;
-      } else if (Array.isArray(response.data)) {
-        studentsData = response.data;
+      // Handle institution API response format
+      let studentsData: any[] = [];
+      if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+        const data = response.data as any;
+        if (data.success && data.data) {
+          studentsData = data.data.students || [];
+          setStudents(studentsData);
+        } else {
+          setStudents([]);
+        }
+      } else {
+        // Fallback for direct array response
+        studentsData = Array.isArray(response.data) ? response.data : [];
+        setStudents(studentsData);
       }
       
-      console.log('Payment Students Data:', studentsData);
-      setStudents(studentsData);
-      
-      // Calculate stats
+      // Calculate stats from the newly fetched students data
       const totalStudents = studentsData.length;
       const paidStudents = studentsData.filter((student: any) => student.payment_status === 'Paid').length;
       const unpaidStudents = totalStudents - paidStudents;
@@ -86,6 +93,16 @@ const InstitutionPayments = () => {
       const paidAmount = studentsData.filter((student: any) => student.payment_status === 'Paid')
         .reduce((sum: number, student: any) => sum + (student.paid_amount || 0), 0);
       const pendingAmount = totalAmount - paidAmount;
+      
+      console.log('Payment Management - Calculated Stats:', {
+        totalStudents,
+        paidStudents,
+        unpaidStudents,
+        totalAmount,
+        paidAmount,
+        pendingAmount,
+        studentsData: studentsData.map(s => ({ name: s.full_name, payment_status: s.payment_status, total_amount: s.total_amount, paid_amount: s.paid_amount }))
+      });
       
       setStats({
         totalStudents,
@@ -294,7 +311,7 @@ const InstitutionPayments = () => {
             <DollarSign className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">₹{stats.totalAmount}</div>
+            <div className="text-2xl font-bold text-blue-600">KES {stats.totalAmount}</div>
             <p className="text-xs text-muted-foreground">All registrations</p>
           </CardContent>
         </Card>
@@ -370,7 +387,7 @@ const InstitutionPayments = () => {
                           {student.payment_status || "Unpaid"}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
-                          Total: ₹{student.total_amount || 0} | Paid: ₹{student.paid_amount || 0}
+                          Total: KES {student.total_amount || 0} | Paid: KES {student.paid_amount || 0}
                         </span>
                       </div>
                     </div>

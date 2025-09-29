@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { Link } from "react-router-dom";
@@ -37,6 +38,20 @@ const Dashboard = () => {
   // Fetch student data
   const fetchStudentData = async () => {
     try {
+      // Check if student is authenticated
+      if (!student) {
+        console.log('No student found, redirecting to login...');
+        return;
+      }
+
+      // Check if auth token exists
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) {
+        console.log('No auth token found, redirecting to login...');
+        return;
+      }
+
+      console.log('Fetching student dashboard data...');
       // Fetch student dashboard data
       const response = await apiService.getStudentDashboard();
       const dashboardData = (response.data as any)?.data;
@@ -70,11 +85,35 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching student data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch your sports registrations",
-        variant: "destructive",
-      });
+      
+      // Handle specific error cases
+      if (error instanceof Error) {
+        if (error.message.includes('422')) {
+          toast({
+            title: "Authentication Error",
+            description: "Please log in again to access your dashboard",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('401')) {
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please log in again.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: `Failed to fetch your sports registrations: ${error.message}`,
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch your sports registrations",
+          variant: "destructive",
+        });
+      }
       
       // Set empty data on error
       setRegisteredSports([]);
@@ -92,8 +131,10 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    fetchStudentData();
-  }, []);
+    if (student?.id) {
+      fetchStudentData();
+    }
+  }, [student?.id]);
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
@@ -257,10 +298,30 @@ const Dashboard = () => {
       {/* Registered Sports Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Your Sports Registrations</CardTitle>
-          <CardDescription>
-            Track your registered sports and payment status
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle>Your Sports Registrations</CardTitle>
+              <CardDescription>
+                Track your registered sports and payment status
+              </CardDescription>
+            </div>
+            {registeredSports.length > 0 && (
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>{stats.paidSports} Paid</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                  <span>{stats.pendingSports} Pending</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Total: ₹{stats.totalAmount}</span>
+                </div>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {registeredSports.length === 0 ? (
@@ -278,25 +339,62 @@ const Dashboard = () => {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {registeredSports.map((sport) => (
-                <div key={sport.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="space-y-1">
-                    <h4 className="font-medium">{sport.sport_name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {sport.category_name} • {sport.sub_category_name} • ₹{sport.fee}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Institute: {sport.institute_name}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={getPaymentStatusColor(sport.payment_status)}>
-                      {sport.payment_status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[200px]">Sport Name</TableHead>
+                    <TableHead className="min-w-[150px]">Category</TableHead>
+                    <TableHead className="min-w-[150px]">Sub Category</TableHead>
+                    <TableHead className="min-w-[100px]">Age Group</TableHead>
+                    <TableHead className="min-w-[120px]">Institute</TableHead>
+                    <TableHead className="min-w-[100px]">Fee</TableHead>
+                    <TableHead className="min-w-[120px]">Payment Status</TableHead>
+                    <TableHead className="min-w-[100px]">Registration Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {registeredSports.map((sport) => (
+                    <TableRow key={sport.id} className="hover:bg-muted/50">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <Trophy className="h-4 w-4 text-muted-foreground" />
+                          {sport.sport_name || 'N/A'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {sport.category_name || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {sport.sub_category_name || 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs">
+                          {sport.age_group || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-[120px] truncate" title={sport.institute_name || 'N/A'}>
+                          {sport.institute_name || 'N/A'}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium text-green-600">
+                        ₹{sport.fee || 0}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getPaymentStatusColor(sport.payment_status)}>
+                          {sport.payment_status || 'Pending'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {sport.registration_date ? new Date(sport.registration_date).toLocaleDateString() : 'N/A'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

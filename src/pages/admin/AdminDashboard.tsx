@@ -410,6 +410,8 @@ const AdminDashboard = () => {
     total_sponsorships: 0,
     total_payments: 0,
     pending_payments: 0,
+    total_completed_amount: 0,
+    total_pending_amount: 0,
   });
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -417,21 +419,38 @@ const AdminDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalInstitutions, setTotalInstitutions] = useState(0);
   const [institutionsPerPage] = useState(10);
-  {console.log("djkdjdjddjdjkdjkdjjkdjkdjkjdjkddjkdjkkd",institutions)}
+  {console.log("🏢 Institutions:", institutions)}
+  {console.log("📊 Stats:", stats)}
   // Fetch dashboard stats
   const fetchStats = async () => {
     try {
-      console.log('Fetching admin dashboard stats...');
+      console.log('🔄 Fetching admin dashboard stats...');
       const response = await apiService.getAdminDashboardStats();
-      console.log('Dashboard stats response:', response);
+      console.log('📊 Dashboard stats response:', response);
+      console.log('📊 Response status:', response.status);
+      console.log('📊 Response data:', response.data);
+      
       if (response.data && typeof response.data === 'object') {
         const data = response.data as any;
+        console.log('📊 Parsed data:', data);
+        console.log('📊 Data success:', data.success);
+        console.log('📊 Data data:', data.data);
+        console.log('📊 Data message:', data.message);
+        console.log('📊 Data error_code:', data.error_code);
+        
         if (data.success && data.data) {
+          console.log('✅ Setting stats with data:', data.data);
           setStats(data.data as typeof stats);
+        } else {
+          console.error('❌ API response not successful or missing data:', data);
+          console.error('❌ Full response object:', response);
         }
+      } else {
+        console.error('❌ Invalid response data structure:', response.data);
+        console.error('❌ Full response object:', response);
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('❌ Error fetching stats:', error);
       toast({
         title: "Error",
         description: "Failed to fetch dashboard statistics",
@@ -632,7 +651,7 @@ const AdminDashboard = () => {
             <CreditCard className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{(stats.total_payments || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold">₹{(stats.total_completed_amount || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Total collected</p>
           </CardContent>
         </Card>
@@ -646,7 +665,7 @@ const AdminDashboard = () => {
             <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pending_payments || 0}</div>
+            <div className="text-2xl font-bold">₹{(stats.total_pending_amount || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Click to filter</p>
           </CardContent>
         </Card>
@@ -759,14 +778,17 @@ const AdminDashboard = () => {
                             View
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="max-w-2xl">
                           <DialogHeader>
-                            <DialogTitle>{selectedInstitution?.name || institution.name}</DialogTitle>
+                            <DialogTitle className="flex items-center gap-2">
+                              <Building2 className="h-5 w-5" />
+                              {selectedInstitution?.name || institution.name}
+                            </DialogTitle>
                             <DialogDescription>
-                              Institution details and management
+                              Basic institution information and statistics
                             </DialogDescription>
                           </DialogHeader>
-                          <div className="space-y-6 mt-6 max-h-[70vh] overflow-y-auto">
+                          <div className="space-y-6 mt-6">
                             {loadingDetails ? (
                               <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -774,77 +796,73 @@ const AdminDashboard = () => {
                               </div>
                             ) : institutionDetails ? (
                               <>
-                                {/* Contact Information */}
-                                <div>
-                                  <h4 className="font-medium mb-3 text-lg">Contact Information</h4>
-                                  <div className="space-y-2">
-                                    <p><span className="font-medium">Email:</span> {institutionDetails.email || "N/A"}</p>
-                                    <p><span className="font-medium">Type:</span> {institutionDetails.type}</p>
-                                    {institutionDetails.contact_persons && institutionDetails.contact_persons.length > 0 && (
-                                      <div className="space-y-2">
-                                        <p className="font-medium">Contact Persons:</p>
-                                        {institutionDetails.contact_persons.map((contact: any, index: number) => (
-                                          <div key={index} className="ml-4 p-3 bg-gray-50 rounded-lg">
-                                            <p><span className="font-medium">Name:</span> {contact.name}</p>
-                                            <p><span className="font-medium">Designation:</span> {contact.designation}</p>
-                                            <p><span className="font-medium">Phone:</span> {contact.phone}</p>
-                                            <p><span className="font-medium">Email:</span> {contact.email}</p>
-                                          </div>
-                                        ))}
+                                {/* Basic Information */}
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-lg border-b pb-2">Basic Information</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <p><span className="font-medium text-gray-600">Institution Name:</span></p>
+                                      <p className="text-lg">{institutionDetails.name || "N/A"}</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <p><span className="font-medium text-gray-600">Email:</span></p>
+                                      <p className="text-lg">{institutionDetails.email || "N/A"}</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <p><span className="font-medium text-gray-600">Institution Type:</span></p>
+                                      <p className="text-lg">{institutionDetails.type || "N/A"}</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <p><span className="font-medium text-gray-600">Registration Date:</span></p>
+                                      <p className="text-lg">
+                                        {institutionDetails.created_at 
+                                          ? new Date(institutionDetails.created_at).toLocaleDateString()
+                                          : "N/A"
+                                        }
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Statistics */}
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-lg border-b pb-2">Statistics</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Total Sports Count */}
+                                    <div className="bg-blue-50 p-4 rounded-lg border">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="text-sm font-medium text-blue-600">Total Sports</p>
+                                          <p className="text-2xl font-bold text-blue-700">
+                                            {institutionDetails.sports_assignments?.length || 0}
+                                          </p>
+                                        </div>
+                                        <Trophy className="h-8 w-8 text-blue-500" />
                                       </div>
-                                    )}
+                                    </div>
+
+                                    {/* Total Students Count */}
+                                    <div className="bg-green-50 p-4 rounded-lg border">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="text-sm font-medium text-green-600">Total Students</p>
+                                          <p className="text-2xl font-bold text-green-700">
+                                            {institutionDetails.students?.length || 0}
+                                          </p>
+                                        </div>
+                                        <Users className="h-8 w-8 text-green-500" />
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Payment Information */}
-                                <div>
-                                  <h4 className="font-medium mb-3 text-lg">Payment Information</h4>
-                                  <div className="space-y-2 p-4 bg-gray-50 rounded-lg">
-                                    <p><span className="font-medium">Total Amount:</span> ₹{institutionDetails.payment_info?.total_amount?.toLocaleString() || 0}</p>
-                                    <p><span className="font-medium">Paid Amount:</span> ₹{institutionDetails.payment_info?.paid_amount?.toLocaleString() || 0}</p>
-                                    <p><span className="font-medium">Pending Amount:</span> ₹{institutionDetails.payment_info?.pending_amount?.toLocaleString() || 0}</p>
-                                    <Badge className={getPaymentStatusColor(institutionDetails.payment_info?.status || "Pending")}>
-                                      {institutionDetails.payment_info?.status || "Pending"}
-                                    </Badge>
-                                  </div>
-                                </div>
-
-                                {/* Students */}
-                                <div>
-                                  <h4 className="font-medium mb-3 text-lg">Students ({institutionDetails.students?.length || 0})</h4>
-                                  {institutionDetails.students && institutionDetails.students.length > 0 ? (
-                                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                                      {institutionDetails.students.map((student: any, index: number) => (
-                                        <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                                          <p><span className="font-medium">Name:</span> {student.name}</p>
-                                          <p><span className="font-medium">Email:</span> {student.email}</p>
-                                          <p><span className="font-medium">Phone:</span> {student.phone}</p>
-                                          <p><span className="font-medium">Gender:</span> {student.gender}</p>
-                                          <p><span className="font-medium">Student ID:</span> {student.student_id}</p>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="text-muted-foreground">No students registered</p>
-                                  )}
-                                </div>
-
-                                {/* Sports Assignments */}
-                                <div>
-                                  <h4 className="font-medium mb-3 text-lg">Sports Assignments ({institutionDetails.sports_assignments?.length || 0})</h4>
-                                  {institutionDetails.sports_assignments && institutionDetails.sports_assignments.length > 0 ? (
-                                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                                      {institutionDetails.sports_assignments.map((assignment: any, index: number) => (
-                                        <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                                          <p><span className="font-medium">Sport:</span> {assignment.sport_name} ({assignment.sport_type})</p>
-                                          <p><span className="font-medium">Student:</span> {assignment.student_name}</p>
-                                          <p><span className="font-medium">Fee:</span> ₹{assignment.fee}</p>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="text-muted-foreground">No sports assignments</p>
-                                  )}
+                                {/* Quick Summary */}
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                  <h5 className="font-medium text-gray-700 mb-2">Quick Summary</h5>
+                                  <p className="text-sm text-gray-600">
+                                    This institution has registered <span className="font-semibold">{institutionDetails.sports_assignments?.length || 0} sports</span> and 
+                                    has <span className="font-semibold">{institutionDetails.students?.length || 0} students</span> enrolled.
+                                  </p>
                                 </div>
                               </>
                             ) : (

@@ -36,7 +36,27 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
     if (!files.studentIdImage) newErrors.push("Student ID Image is required");
     if (!files.ageProofDocument) newErrors.push("Age Proof Document is required");
     
+    // Validate file types
+    if (files.studentIdImage && !isValidImageFile(files.studentIdImage)) {
+      newErrors.push("Student ID Image must be JPG, PNG, or JPEG format");
+    }
+    if (files.ageProofDocument && !isValidImageFile(files.ageProofDocument)) {
+      newErrors.push("Age Proof Document must be JPG, PNG, or JPEG format");
+    }
+    
     return newErrors;
+  };
+
+  const isValidImageFile = (file: File): boolean => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+    
+    const hasValidType = allowedTypes.includes(file.type.toLowerCase());
+    const hasValidExtension = allowedExtensions.some(ext => 
+      file.name.toLowerCase().endsWith(ext)
+    );
+    
+    return hasValidType || hasValidExtension;
   };
 
   const handleSubmit = async () => {
@@ -142,7 +162,7 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
                   <Input
                     id="studentId"
                     type="file"
-                    accept="image/*,.pdf"
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                     onChange={(e) => handleFileChange("studentIdImage", e.target.files?.[0] || null)}
                     className="mt-3"
                   />
@@ -154,7 +174,7 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground mt-2">
-                    Accepted formats: JPG, PNG, PDF • Max size: 10MB
+                    Accepted formats: JPG, PNG, JPEG only • Max size: 10MB
                   </p>
                 </div>
               </div>
@@ -181,7 +201,7 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
                   <Input
                     id="ageProof"
                     type="file"
-                    accept="image/*,.pdf"
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                     onChange={(e) => handleFileChange("ageProofDocument", e.target.files?.[0] || null)}
                     className="mt-3"
                   />
@@ -193,7 +213,7 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground mt-2">
-                    Accepted formats: JPG, PNG, PDF • Max size: 10MB
+                    Accepted formats: JPG, PNG, JPEG only • Max size: 10MB
                   </p>
                 </div>
               </div>
@@ -205,6 +225,7 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
             <AlertDescription>
               <strong>Document Guidelines:</strong>
               <ul className="mt-2 space-y-1 text-sm">
+                <li>• Only JPG, PNG, and JPEG files are accepted (PDFs not allowed)</li>
                 <li>• Ensure documents are clear and all text is readable</li>
                 <li>• Photos should be well-lit with no shadows or glare</li>
                 <li>• Full document should be visible in the image</li>
