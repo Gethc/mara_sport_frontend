@@ -27,9 +27,12 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-    };
+    const defaultHeaders: Record<string, string> = {};
+
+    // Only set Content-Type for non-FormData requests
+    if (!(options.body instanceof FormData)) {
+      defaultHeaders['Content-Type'] = 'application/json';
+    }
 
     // Add auth token if available
     const token = localStorage.getItem('authToken');
@@ -188,8 +191,22 @@ class ApiService {
     });
   }
 
+  async createInstitutionStudent(studentData: any) {
+    return this.request('/students/institution/students', {
+      method: 'POST',
+      body: JSON.stringify(studentData),
+    });
+  }
+
   async updateStudent(id: number, studentData: any) {
     return this.request(`/students/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(studentData),
+    });
+  }
+
+  async updateInstitutionStudent(id: number, studentData: any) {
+    return this.request(`/students/institution/students/${id}`, {
       method: 'PUT',
       body: JSON.stringify(studentData),
     });
@@ -559,13 +576,29 @@ class ApiService {
     return this.request(`/students/${studentId}/sports`);
   }
 
+  async removeStudentFromSport(studentId: number, sportId: string) {
+    return this.request(`/students/${studentId}/sports/${sportId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async removeStudentFromCategory(studentId: number, categoryId: string) {
+    return this.request(`/students/${studentId}/categories/${categoryId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getStudentsBySport(sportId: string) {
+    return this.request(`/sports/${sportId}/students`);
+  }
+
   // Institution Sports Management APIs
   async getInstitutionSports() {
-    return this.request('/institution/sports');
+    return this.request('/sports/institution/sports');
   }
 
   async getInstitutionStudents() {
-    return this.request('/institution/students');
+    return this.request('/students/institution/students');
   }
 
   async addSportCategory(sportId: string, data: any) {
@@ -832,6 +865,14 @@ class ApiService {
     });
   }
 
+  // Fee Calculation APIs
+  async calculateTotalFees(calculationData: any) {
+    return this.request('/fee-calculation/calculate-total-fees', {
+      method: 'POST',
+      body: JSON.stringify(calculationData),
+    });
+  }
+
   async getStudentDocuments(studentId: number) {
     return this.request(`/documents/${studentId}`);
   }
@@ -939,8 +980,15 @@ class ApiService {
   }
 
   // Institution Registration Checkpoint Methods
+  async validateRegistrationEmail(email: string) {
+    return this.request('/checkpoint/validate-email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
   async saveRegistrationCheckpoint(email: string, step: number, data: any) {
-    return this.request('/institution/checkpoint/save', {
+    return this.request('/checkpoint/save', {
       method: 'POST',
       body: JSON.stringify({
         email: email,
@@ -951,12 +999,73 @@ class ApiService {
   }
 
   async loadRegistrationCheckpoint(email: string) {
-    return this.request(`/institution/checkpoint/load/${email}`);
+    return this.request(`/checkpoint/load/${email}`);
   }
 
   async clearRegistrationCheckpoint(email: string) {
-    return this.request(`/institution/checkpoint/clear/${email}`, {
+    return this.request(`/checkpoint/clear/${email}`, {
       method: 'DELETE',
+    });
+  }
+
+  // Student Dashboard Methods
+  async getStudentDashboard() {
+    return this.request('/students/dashboard');
+  }
+
+  async getStudentRegistrations() {
+    return this.request('/students/dashboard');
+  }
+
+  async getStudentPaymentInfo(studentId: number) {
+    return this.request(`/students/public/${studentId}/payment-info`);
+  }
+
+  async getStudentProfile() {
+    return this.request('/auth/me/student');
+  }
+
+  // Payment methods
+  async processStudentPayment(studentId: number, paymentData: any) {
+    return this.request(`/payments/institution/students/${studentId}/payment`, {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    });
+  }
+
+  async sendPaymentLinkToStudent(studentId: number, emailData: any) {
+    return this.request(`/payments/institution/students/${studentId}/send-payment-link`, {
+      method: 'POST',
+      body: JSON.stringify(emailData),
+    });
+  }
+
+  async getStudentPaymentStatus(studentId: number) {
+    return this.request(`/payments/institution/students/${studentId}/payment-status`);
+  }
+
+  // Student login methods
+  async sendStudentLoginOTP(data: { email: string }) {
+    return this.request('/otp/send/student', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Institution profile methods
+  async getInstitutionProfile() {
+    return this.request('/auth/me/institute');
+  }
+
+  // Student prefill methods
+  async getStudentPrefillData(email: string) {
+    return this.request(`/students/prefill/${email}`);
+  }
+
+  async updateInstitutionProfile(profileData: any) {
+    return this.request('/institutes/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
     });
   }
 }

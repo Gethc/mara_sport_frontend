@@ -40,10 +40,9 @@ interface SportDetailsDialogProps {
   };
   onClose: () => void;
   onEdit: () => void;
-  onAddStudent: () => void;
 }
 
-const SportDetailsDialog = ({ sport, onClose, onEdit, onAddStudent }: SportDetailsDialogProps) => {
+const SportDetailsDialog = ({ sport, onClose, onEdit }: SportDetailsDialogProps) => {
   const [activeTab, setActiveTab] = useState("overview");
 
   const getSportTypeColor = (type: string) => {
@@ -80,10 +79,6 @@ const SportDetailsDialog = ({ sport, onClose, onEdit, onAddStudent }: SportDetai
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={onAddStudent} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Student
-              </Button>
               <Button onClick={onEdit} variant="outline" size="sm">
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
@@ -160,10 +155,6 @@ const SportDetailsDialog = ({ sport, onClose, onEdit, onAddStudent }: SportDetai
           <TabsContent value="students" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Enrolled Students</h3>
-              <Button onClick={onAddStudent} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Student
-              </Button>
             </div>
 
             {sport.enrolledStudents.length === 0 ? (
@@ -173,10 +164,6 @@ const SportDetailsDialog = ({ sport, onClose, onEdit, onAddStudent }: SportDetai
                 <p className="text-muted-foreground mb-4">
                   No students have been enrolled in this sport yet.
                 </p>
-                <Button onClick={onAddStudent}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Student
-                </Button>
               </div>
             ) : (
               <div className="border rounded-lg">

@@ -53,8 +53,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
     if (feeCalculation) {
       return feeCalculation.breakdown.total;
     }
-    // Fallback calculation
-    const baseFee = 1000; // KES
+    // Fallback calculation (excluding base fee)
     const sportsFee = (registrationData.sports?.selectedSports?.length || 0) * 1000; // KES
     const parentCount = registrationData.parentMedical?.parents?.length || 0;
     let parentFee = 0;
@@ -62,7 +61,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
     else if (parentCount === 2) parentFee = 1500;
     else if (parentCount >= 3) parentFee = 2000;
     
-    return baseFee + sportsFee + parentFee;
+    return sportsFee + parentFee;
   };
 
   const handleProceedToPayment = () => {
@@ -179,8 +178,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
     try {
       const calculationData = {
         selectedSports: sports?.selectedSports || [],
-        parentCount: parentMedical?.parents?.length || 0,
-        baseFee: 1000 // Base registration fee in KES
+        parentCount: parentMedical?.parents?.length || 0
       };
 
       const response = await apiService.calculateTotalFees(calculationData);
@@ -297,10 +295,6 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
               <CardContent className="space-y-2">
                 {feeCalculation ? (
                   <>
-                    <div className="flex justify-between">
-                      <span>Base Registration Fee</span>
-                      <span>KES {feeCalculation.breakdown.base_fee.toLocaleString()}</span>
-                    </div>
                     <div className="flex justify-between">
                       <span>Sports Fee ({sports?.selectedSports?.length || 0} sports)</span>
                       <span>KES {feeCalculation.breakdown.sports_fees.reduce((sum: number, sport: any) => sum + sport.fee, 0).toLocaleString()}</span>
@@ -615,10 +609,6 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
               <div className="space-y-2">
                 {feeCalculation ? (
                   <>
-                    <div className="flex justify-between">
-                      <span>Base Registration Fee</span>
-                      <span>KES {feeCalculation.breakdown.base_fee.toLocaleString()}</span>
-                    </div>
                     <div className="flex justify-between">
                       <span>Sports Fee ({sports?.selectedSports?.length || 0} sports)</span>
                       <span>KES {feeCalculation.breakdown.sports_fees.reduce((sum: number, sport: any) => sum + sport.fee, 0).toLocaleString()}</span>

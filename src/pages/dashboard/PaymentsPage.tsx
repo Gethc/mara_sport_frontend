@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
 import { 
   CreditCard, 
   Receipt, 
@@ -44,7 +45,7 @@ interface SponsorshipRequest {
 
 const PaymentsPage = () => {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showSponsorshipModal, setShowSponsorshipModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -57,35 +58,48 @@ const PaymentsPage = () => {
     sponsorshipType: "partial"
   });
 
-  // Mock payment data
-  const payments: PaymentItem[] = [
-    {
-      id: 1,
-      sport: "Football",
-      category: "Men's Team",
-      amount: 150,
-      status: 'paid',
-      dueDate: '2024-02-15',
-      transactionId: 'TXN001234567'
-    },
-    {
-      id: 2,
-      sport: "Basketball",
-      category: "Men's Team",
-      amount: 120,
-      status: 'pending',
-      dueDate: '2024-02-20'
-    },
-    {
-      id: 3,
-      sport: "Tennis",
-      category: "Singles",
-      amount: 80,
-      status: 'paid',
-      dueDate: '2024-02-18',
-      transactionId: 'TXN001234568'
+  // State for real payment data
+  const [payments, setPayments] = useState<PaymentItem[]>([]);
+
+  // Fetch payment data from API
+  const fetchPaymentData = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getStudentDashboard();
+      const dashboardData = (response.data as any)?.data;
+      
+      if (dashboardData && dashboardData.registrations) {
+        // Transform registration data to payment format
+        const paymentData: PaymentItem[] = dashboardData.registrations.map((reg: any) => ({
+          id: reg.id,
+          sport: reg.sport_name,
+          category: reg.category_name,
+          amount: reg.fee,
+          status: reg.payment_status === 'Paid' ? 'paid' : 'pending',
+          dueDate: reg.created_at ? new Date(reg.created_at).toISOString().split('T')[0] : '',
+          transactionId: reg.payment_status === 'Paid' ? `TXN${reg.id.toString().padStart(6, '0')}` : undefined
+        }));
+        setPayments(paymentData);
+      } else {
+        setPayments([]);
+      }
+    } catch (error) {
+      console.error('Error fetching payment data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch payment data. Please try again.",
+        variant: "destructive",
+      });
+      setPayments([]);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchPaymentData();
+  }, []);
 
   const sponsorshipRequests: SponsorshipRequest[] = [
     { 
@@ -478,7 +492,20 @@ const PaymentsPage = () => {
               </tr>
             </thead>
             <tbody>
-              {payments.map((payment) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Loading payment data...
+                  </td>
+                </tr>
+              ) : payments.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No payment records found.
+                  </td>
+                </tr>
+              ) : (
+                payments.map((payment) => (
                 <tr key={payment.id} className="border-b">
                   <td className="py-3">{payment.sport}</td>
                   <td className="py-3">{payment.category}</td>
@@ -545,7 +572,8 @@ const PaymentsPage = () => {
                     </Dialog>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>

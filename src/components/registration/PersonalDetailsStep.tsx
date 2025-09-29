@@ -44,6 +44,9 @@ const defaultInstituteTypes = [
 
 export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: PersonalDetailsStepProps) => {
   const { toast } = useToast();
+  
+  // Debug logging
+  console.log("PersonalDetailsStep received initialData:", initialData);
   const [formData, setFormData] = useState({
     firstName: initialData?.firstName || "",
     middleName: initialData?.middleName || "",
@@ -71,20 +74,20 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
   useEffect(() => {
     if (initialData?.email && initialData.email !== loadedEmail) {
       setFormData({
-        firstName: "",
-        middleName: "",
-        lastName: "",
+        firstName: initialData.firstName || "",
+        middleName: initialData.middleName || "",
+        lastName: initialData.lastName || "",
         email: initialData.email,
-        dateOfBirth: "",
-        gender: "",
-        instituteName: "",
-        otherInstitute: "",
-        instituteType: "",
-        studentId: "",
-        phoneNumber: "",
-        address: "",
+        dateOfBirth: initialData.dateOfBirth || "",
+        gender: initialData.gender || "",
+        instituteName: initialData.instituteName || "",
+        otherInstitute: initialData.otherInstitute || "",
+        instituteType: initialData.instituteType || "",
+        studentId: initialData.studentId || "",
+        phoneNumber: initialData.phoneNumber || "",
+        address: initialData.address || "",
       });
-      setLoadedEmail(null); // Reset loaded email to allow loading new data
+      setLoadedEmail(initialData.email); // Set loaded email to prevent reloading
     }
   }, [initialData?.email, loadedEmail]);
 

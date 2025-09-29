@@ -109,25 +109,119 @@ export const InstitutionPaymentStep = ({
     }, 1000);
   };
 
-  const handlePayByStudent = () => {
+  const handlePayByStudent = async () => {
     setProcessing(true);
-    setTimeout(() => {
-      toast({
-        title: "Payment Instructions Sent",
-        description: "Payment emails have been sent to all registered students.",
-      });
+    try {
+      // Get all students from the institution data
+      const students = [];
+      if (institutionData.sportTeams) {
+        institutionData.sportTeams.forEach((team: any) => {
+          team.students.forEach((student: any) => {
+            students.push({
+              id: student.id || Math.random().toString(36).substr(2, 9),
+              name: `${student.fname} ${student.mname || ''} ${student.lname}`.trim(),
+              email: student.email,
+              studentId: student.student_id,
+              sport: team.sport,
+              category: team.category,
+              amount: 500 // Default fee per student
+            });
+          });
+        });
+      } else if (institutionData.students) {
+        // Fallback for old data structure
+        institutionData.students.forEach((student: any) => {
+          students.push({
+            id: student.id || Math.random().toString(36).substr(2, 9),
+            name: `${student.fname} ${student.mname || ''} ${student.lname}`.trim(),
+            email: student.email,
+            studentId: student.student_id,
+            sport: "General Registration",
+            category: "Student",
+            amount: 500
+          });
+        });
+      }
+
+      console.log('🔄 Processing payment emails for students:', students);
+
+      // Send payment emails to all students
+      let emailsSent = 0;
+      const failedEmails = [];
+      
+      for (const student of students) {
+        try {
+          const emailData = {
+            studentName: student.name,
+            studentEmail: student.email,
+            studentId: student.studentId,
+            sport: student.sport,
+            category: student.category,
+            amount: student.amount,
+            institutionName: institutionData.institutionDetails?.institutionName || institutionData.institutionName || "Your Institution",
+            institutionEmail: institutionData.institutionDetails?.institutionEmail || institutionData.email || "contact@institution.com"
+          };
+          
+          console.log(`📧 Sending email to ${student.email}:`, emailData);
+          
+          // Call the payment email API with registration endpoint
+          const response = await fetch('/api/v1/payments/send-payment-link-registration', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(emailData)
+          });
+          
+          if (response.ok) {
+            emailsSent++;
+            console.log(`✅ Email sent successfully to ${student.email}`);
+          } else {
+            const errorText = await response.text();
+            console.error(`❌ Failed to send email to ${student.email}:`, response.status, errorText);
+            failedEmails.push(student.email);
+          }
+        } catch (error) {
+          console.error(`❌ Error sending email to ${student.email}:`, error);
+          failedEmails.push(student.email);
+        }
+        
+        // Add small delay between emails to avoid overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      if (emailsSent === students.length) {
+        toast({
+          title: "Payment Instructions Sent",
+          description: `Payment emails have been successfully sent to all ${students.length} registered students.`,
+        });
+      } else {
+        toast({
+          title: "Partial Success",
+          description: `Payment emails sent to ${emailsSent} out of ${students.length} students. ${failedEmails.length > 0 ? `Failed: ${failedEmails.join(', ')}` : ''}`,
+          variant: "destructive",
+        });
+      }
+      
       onComplete({
         paymentType: "payByStudent",
         totalFees: fees.totalFee,
         studentsFee: fees.studentsFee,
         sportsFee: fees.sportsFee,
-        emailsSent: institutionData.sportTeams 
-          ? institutionData.sportTeams.reduce((total: number, team: any) => total + team.students.length, 0)
-          : institutionData.students?.length || 0,
+        emailsSent: emailsSent,
         status: "payment_emails_sent",
         accountCreated: true
       });
-    }, 1000);
+    } catch (error) {
+      console.error('Error sending payment emails:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send payment emails. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const renderSponsorForm = () => (

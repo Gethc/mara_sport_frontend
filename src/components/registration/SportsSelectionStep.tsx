@@ -229,7 +229,6 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
       const calculationData = {
         selectedSports: formData.selectedSports,
         parentCount: 0, // Will be updated when parent data is available
-        baseFee: 1000 // Base registration fee in KES
       };
 
       const response = await apiService.calculateTotalFees(calculationData);
@@ -665,10 +664,6 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
                 </div>
                 {feeCalculation ? (
                   <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Base Fee:</span>
-                      <span>KES {feeCalculation.breakdown.base_fee.toLocaleString()}</span>
-                    </div>
                     <div className="flex justify-between">
                       <span>Sports Fee ({formData.selectedSports.length} sports):</span>
                       <span>KES {feeCalculation.breakdown.sports_fees.reduce((sum: number, sport: any) => sum + sport.fee, 0).toLocaleString()}</span>

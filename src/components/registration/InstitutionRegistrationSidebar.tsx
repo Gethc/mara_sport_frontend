@@ -16,12 +16,7 @@ const steps = [
     description: "Basic information and contact details",
     icon: Building,
   },
-  {
-    id: 2,
-    title: "Sports & Categories",
-    description: "Select sports and sub-categories",
-    icon: Trophy,
-  },
+  // Sports step removed per requirements
   {
     id: 3,
     title: "Add Students", 

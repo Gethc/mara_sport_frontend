@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,6 @@ interface ParentMedicalStepProps {
 
 export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: ParentMedicalStepProps) => {
   const { toast } = useToast();
-  const PARENT_FEE = 100; // Fee per parent
   
   const [formData, setFormData] = useState({
     parentsAttending: initialData?.parentsAttending || "",
@@ -38,8 +37,45 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
     allergiesDetails: initialData?.allergiesDetails || "",
   });
 
+  const [parentFeeData, setParentFeeData] = useState({
+    feePerParent: 0,
+    pricingTier: "",
+    loading: true
+  });
+
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch parent fee data on component mount
+  useEffect(() => {
+    const fetchParentFee = async () => {
+      try {
+        const response = await apiService.calculateTotalFees({
+          selectedSports: [],
+          parentCount: 1 // Get fee for 1 parent to calculate per-parent rate
+        });
+        
+        if (response.data && (response.data as any).success) {
+          const feeData = (response.data as any).data;
+          setParentFeeData({
+            feePerParent: feeData.parent_fee_per_parent || 500, // Default to KES 500
+            pricingTier: feeData.parent_pricing_tier || "Early Bird",
+            loading: false
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching parent fee:", error);
+        // Fallback to default pricing
+        setParentFeeData({
+          feePerParent: 500, // KES 500 for Early Bird 13+
+          pricingTier: "Early Bird",
+          loading: false
+        });
+      }
+    };
+
+    fetchParentFee();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -113,7 +149,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
     
     setIsLoading(true);
     try {
-      const parentFees = formData.parentsAttending === "yes" ? formData.parents.length * PARENT_FEE : 0;
+      const parentFees = formData.parentsAttending === "yes" ? formData.parents.length * parentFeeData.feePerParent : 0;
       
       // Save parent and medical information to database
       const parentMedicalData = {
@@ -125,7 +161,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
       
       const response = await apiService.saveParentMedical(parentMedicalData);
       
-      if (response.data && response.data.success) {
+      if (response.data && (response.data as any).success) {
         // Save registration progress
         const progressData = {
           email: email || initialData?.email,
@@ -148,7 +184,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
           parentCount: formData.parentsAttending === "yes" ? formData.parents.length : 0
         });
       } else {
-        throw new Error((response.data && response.data.message) || "Failed to save parent and medical information");
+        throw new Error((response.data && (response.data as any).message) || "Failed to save parent and medical information");
       }
     } catch (error) {
       console.error("Error saving parent and medical information:", error);
@@ -395,11 +431,21 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
                 </div>
                 <div className="flex justify-between">
                   <span>Fee per Parent:</span>
-                  <span className="font-medium">₹{PARENT_FEE}</span>
+                  <span className="font-medium">
+                    {parentFeeData.loading ? "Loading..." : `KES ${parentFeeData.feePerParent}`}
+                  </span>
                 </div>
+                {parentFeeData.pricingTier && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Pricing Tier:</span>
+                    <span>{parentFeeData.pricingTier}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-primary font-semibold border-t pt-1">
                   <span>Total Parent Fees:</span>
-                  <span>₹{formData.parents.length * PARENT_FEE}</span>
+                  <span>
+                    {parentFeeData.loading ? "Loading..." : `KES ${formData.parents.length * parentFeeData.feePerParent}`}
+                  </span>
                 </div>
               </div>
             </div>

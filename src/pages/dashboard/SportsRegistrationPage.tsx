@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { calculateAge, validateAgeForAgeGroup } from "@/lib/ageValidation";
 import { Trophy, Users, DollarSign, Calendar, MapPin, Clock, Star } from "lucide-react";
 import sportsService, { Sport, SportCategory } from "@/services/sportsService";
 
@@ -83,6 +84,22 @@ const SportsRegistrationPage = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Validate age if student has date of birth
+    if (student.dob && selectedSubcategory.age_from && selectedSubcategory.age_to) {
+      const studentAge = calculateAge(student.dob);
+      const ageGroup = `${selectedSubcategory.age_from}-${selectedSubcategory.age_to}`;
+      const ageValidation = validateAgeForAgeGroup(studentAge, ageGroup, true);
+      
+      if (!ageValidation.isValid) {
+        toast({
+          title: "Age Validation Error",
+          description: ageValidation.message,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     if (selectedSport.type === "Team Sport" && (!teamDetails.teamName || !teamDetails.captainName)) {

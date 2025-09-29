@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,26 +8,103 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, User, Mail, Calendar, School, IdCard, Camera, FileText } from "lucide-react";
+import { apiService } from "@/services/api";
+import { Upload, User, Mail, Calendar, School, IdCard, Camera, FileText, Loader2 } from "lucide-react";
 
 const ProfilePage = () => {
   const { student, updateProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [fetching, setFetching] = useState(true);
   
   const [formData, setFormData] = useState({
-    fullName: student?.fullName || "",
-    email: student?.email || "",
-    dateOfBirth: student?.dateOfBirth || "",
-    gender: student?.gender || "",
-    instituteName: student?.instituteName || "",
-    studentId: student?.studentId || "",
+    fname: "",
+    mname: "",
+    lname: "",
+    email: "",
+    dob: "",
+    gender: "",
+    phone: "",
+    address: "",
+    student_id: "",
   });
+
+  // Fetch profile data from API
+  const fetchProfileData = async () => {
+    try {
+      setFetching(true);
+      console.log('🔄 Fetching profile data...');
+      
+      const response = await apiService.getStudentProfile();
+      console.log('📊 Profile API Response:', response);
+      
+      const data = (response.data as any)?.data;
+      console.log('📋 Profile Data:', data);
+      
+      if (data) {
+        setProfileData(data);
+        setFormData({
+          fname: data.fname || "",
+          mname: data.mname || "",
+          lname: data.lname || "",
+          email: data.email || "",
+          dob: data.dob || "",
+          gender: data.gender || "",
+          phone: data.phone || "",
+          address: data.address || "",
+          student_id: data.student_id || "",
+        });
+        console.log('✅ Profile data set successfully');
+      } else {
+        console.log('❌ No profile data received');
+        toast({
+          title: "Warning",
+          description: "No profile data received from server",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error fetching profile data:', error);
+      toast({
+        title: "Error",
+        description: `Failed to fetch profile data: ${error.message || 'Unknown error'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  if (fetching) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Profile Management</h1>
+            <p className="text-muted-foreground">
+              Manage your personal information and account settings
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading profile data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,17 +154,19 @@ const ProfilePage = () => {
           <CardContent className="space-y-6">
             <div className="flex flex-col items-center space-y-4">
               <Avatar className="h-32 w-32 border-4 border-primary/20">
-                <AvatarImage src={student?.profilePicture} />
+                <AvatarImage src={profileData?.profilePicture} />
                 <AvatarFallback className="bg-gradient-primary text-primary-foreground text-2xl">
-                  {student?.fullName?.split(' ').map(n => n[0]).join('')}
+                  {profileData ? `${profileData.fname?.[0] || ''}${profileData.lname?.[0] || ''}` : 'S'}
                 </AvatarFallback>
               </Avatar>
               
               <div className="text-center space-y-2">
-                <h3 className="font-semibold text-lg">{student?.fullName}</h3>
-                <p className="text-sm text-muted-foreground">{student?.email}</p>
-                <Badge variant={student?.isEmailVerified ? "default" : "destructive"}>
-                  {student?.isEmailVerified ? "Email Verified" : "Email Pending"}
+                <h3 className="font-semibold text-lg">
+                  {profileData ? `${profileData.fname} ${profileData.mname} ${profileData.lname}` : 'Loading...'}
+                </h3>
+                <p className="text-sm text-muted-foreground">{profileData?.email || 'Loading...'}</p>
+                <Badge variant={profileData?.is_verified ? "default" : "destructive"}>
+                  {profileData?.is_verified ? "Email Verified" : "Email Pending"}
                 </Badge>
               </div>
 
@@ -102,15 +181,19 @@ const ProfilePage = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Profile Completion</span>
-                  <span className="font-medium">85%</span>
+                  <span className="font-medium">
+                    {profileData ? (profileData.registration_complete ? "100%" : "In Progress") : "Loading..."}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Member Since</span>
-                  <span className="font-medium">Jan 2024</span>
+                  <span>Email Status</span>
+                  <span className="font-medium">
+                    {profileData ? (profileData.is_verified ? "Verified" : "Pending") : "Loading..."}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Last Updated</span>
-                  <span className="font-medium">2 days ago</span>
+                  <span>Student ID</span>
+                  <span className="font-medium">{profileData?.student_id || "Loading..."}</span>
                 </div>
               </div>
             </div>
@@ -127,20 +210,35 @@ const ProfilePage = () => {
                   {editing ? "Update your personal details" : "Your personal details"}
                 </CardDescription>
               </div>
-              {editing && (
+              {!editing ? (
+                <Button 
+                  onClick={() => setEditing(true)}
+                  className="bg-gradient-primary"
+                  disabled={fetching}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Edit Profile
+                </Button>
+              ) : (
                 <div className="space-x-2">
                   <Button 
                     variant="outline" 
                     onClick={() => {
                       setEditing(false);
-                      setFormData({
-                        fullName: student?.fullName || "",
-                        email: student?.email || "",
-                        dateOfBirth: student?.dateOfBirth || "",
-                        gender: student?.gender || "",
-                        instituteName: student?.instituteName || "",
-                        studentId: student?.studentId || "",
-                      });
+                      // Reset form data to original values
+                      if (profileData) {
+                        setFormData({
+                          fname: profileData.fname || "",
+                          mname: profileData.mname || "",
+                          lname: profileData.lname || "",
+                          email: profileData.email || "",
+                          dob: profileData.dob || "",
+                          gender: profileData.gender || "",
+                          phone: profileData.phone || "",
+                          address: profileData.address || "",
+                          student_id: profileData.student_id || "",
+                        });
+                      }
                     }}
                   >
                     Cancel
@@ -150,7 +248,12 @@ const ProfilePage = () => {
                     disabled={loading}
                     className="bg-gradient-primary"
                   >
-                    {loading ? "Saving..." : "Save Changes"}
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : "Save Changes"}
                   </Button>
                 </div>
               )}
@@ -160,13 +263,28 @@ const ProfilePage = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="fname">First Name *</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
-                      id="fullName"
-                      value={formData.fullName}
-                      onChange={(e) => handleInputChange("fullName", e.target.value)}
+                      id="fname"
+                      value={formData.fname}
+                      onChange={(e) => handleInputChange("fname", e.target.value)}
+                      className="pl-10"
+                      disabled={!editing}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="mname">Middle Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      id="mname"
+                      value={formData.mname}
+                      onChange={(e) => handleInputChange("mname", e.target.value)}
                       className="pl-10"
                       disabled={!editing}
                     />
@@ -174,7 +292,22 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="lname">Last Name *</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      id="lname"
+                      value={formData.lname}
+                      onChange={(e) => handleInputChange("lname", e.target.value)}
+                      className="pl-10"
+                      disabled={!editing}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address *</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
@@ -184,27 +317,29 @@ const ProfilePage = () => {
                       onChange={(e) => handleInputChange("email", e.target.value)}
                       className="pl-10"
                       disabled={!editing}
+                      required
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Label htmlFor="dob">Date of Birth *</Label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
-                      id="dateOfBirth"
+                      id="dob"
                       type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                      value={formData.dob}
+                      onChange={(e) => handleInputChange("dob", e.target.value)}
                       className="pl-10"
                       disabled={!editing}
+                      required
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gender">Gender</Label>
+                  <Label htmlFor="gender">Gender *</Label>
                   <Select 
                     value={formData.gender} 
                     onValueChange={(value) => handleInputChange("gender", value)}
@@ -222,13 +357,13 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="instituteName">Institute Name</Label>
+                  <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
-                    <School className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
-                      id="instituteName"
-                      value={formData.instituteName}
-                      onChange={(e) => handleInputChange("instituteName", e.target.value)}
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
                       className="pl-10"
                       disabled={!editing}
                     />
@@ -236,15 +371,30 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="studentId">Student ID</Label>
+                  <Label htmlFor="address">Address</Label>
+                  <div className="relative">
+                    <School className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => handleInputChange("address", e.target.value)}
+                      className="pl-10"
+                      disabled={!editing}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="student_id">Student ID *</Label>
                   <div className="relative">
                     <IdCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
-                      id="studentId"
-                      value={formData.studentId}
-                      onChange={(e) => handleInputChange("studentId", e.target.value)}
+                      id="student_id"
+                      value={formData.student_id}
+                      onChange={(e) => handleInputChange("student_id", e.target.value)}
                       className="pl-10"
                       disabled={!editing}
+                      required
                     />
                   </div>
                 </div>

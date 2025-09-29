@@ -37,34 +37,54 @@ const Dashboard = () => {
   // Fetch student data
   const fetchStudentData = async () => {
     try {
-      // Fetch student's registered sports
-      const response = await apiService.getRegistrations();
-      const data = (response.data as any[]) || [];
-      setRegisteredSports(data);
+      // Fetch student dashboard data
+      const response = await apiService.getStudentDashboard();
+      const dashboardData = (response.data as any)?.data;
       
-      // Calculate stats
-      const totalSports = data.length;
-      const paidSports = data.filter((sport: any) => sport.payment_status === 'Paid').length;
-      const pendingSports = totalSports - paidSports;
-      const totalAmount = data.reduce((sum: number, sport: any) => sum + (sport.amount || 0), 0);
-      const paidAmount = data.filter((sport: any) => sport.payment_status === 'Paid')
-        .reduce((sum: number, sport: any) => sum + (sport.amount || 0), 0);
-      const pendingAmount = totalAmount - paidAmount;
-      
-      setStats({
-        totalSports,
-        paidSports,
-        pendingSports,
-        totalAmount,
-        paidAmount,
-        pendingAmount,
-      });
+      if (dashboardData) {
+        // Set registrations
+        const registrations = dashboardData.registrations || [];
+        setRegisteredSports(registrations);
+        
+        // Set stats from backend
+        const backendStats = dashboardData.stats || {};
+        setStats({
+          totalSports: backendStats.total_sports || 0,
+          paidSports: backendStats.paid_sports || 0,
+          pendingSports: backendStats.pending_sports || 0,
+          totalAmount: backendStats.total_amount || 0,
+          paidAmount: backendStats.paid_amount || 0,
+          pendingAmount: backendStats.pending_amount || 0,
+        });
+      } else {
+        // Fallback to empty data
+        setRegisteredSports([]);
+        setStats({
+          totalSports: 0,
+          paidSports: 0,
+          pendingSports: 0,
+          totalAmount: 0,
+          paidAmount: 0,
+          pendingAmount: 0,
+        });
+      }
     } catch (error) {
       console.error('Error fetching student data:', error);
       toast({
         title: "Error",
         description: "Failed to fetch your sports registrations",
         variant: "destructive",
+      });
+      
+      // Set empty data on error
+      setRegisteredSports([]);
+      setStats({
+        totalSports: 0,
+        paidSports: 0,
+        pendingSports: 0,
+        totalAmount: 0,
+        paidAmount: 0,
+        pendingAmount: 0,
       });
     } finally {
       setLoading(false);
@@ -111,10 +131,10 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div className="space-y-2">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            Welcome back, {student?.fullName}!
+            Welcome back, {student?.fname} {student?.mname} {student?.lname}!
           </h1>
           <p className="text-muted-foreground">
-            {student?.instituteName} • Student ID: {student?.studentId}
+            Student • Student ID: {student?.student_id}
           </p>
         </div>
         
@@ -262,20 +282,18 @@ const Dashboard = () => {
               {registeredSports.map((sport) => (
                 <div key={sport.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="space-y-1">
-                    <h4 className="font-medium">{sport.sport_name || sport.sport}</h4>
+                    <h4 className="font-medium">{sport.sport_name}</h4>
                     <p className="text-sm text-muted-foreground">
-                      {sport.subcategory || sport.category} • ₹{sport.amount || sport.fee}
+                      {sport.category_name} • {sport.sub_category_name} • ₹{sport.fee}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Institute: {sport.institute_name}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={getPaymentStatusColor(sport.payment_status || sport.status)}>
-                      {sport.payment_status || sport.status}
+                    <Badge className={getPaymentStatusColor(sport.payment_status)}>
+                      {sport.payment_status}
                     </Badge>
-                    {sport.sponsorship_status && (
-                      <Badge className={getSponsorshipStatusColor(sport.sponsorship_status)}>
-                        {sport.sponsorship_status}
-                      </Badge>
-                    )}
                   </div>
                 </div>
               ))}

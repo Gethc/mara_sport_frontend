@@ -331,21 +331,54 @@ export const InstitutionDetailsStep = ({
       }
     }
     
-    // Email verification requirements - make them optional for now
-    // if (!verificationStatus.institutionEmailVerified) {
-    //   newErrors.push("Institution email must be verified");
-    // }
-    // if (!verificationStatus.contactPersonEmailVerified) {
-    //   newErrors.push("Contact person email must be verified");
-    // }
+    // Email verification requirements - now mandatory
+    if (!verificationStatus.institutionEmailVerified) {
+      newErrors.push("Institution email must be verified");
+    }
+    if (!verificationStatus.contactPersonEmailVerified) {
+      newErrors.push("Contact person email must be verified");
+    }
 
     setErrors(newErrors);
     return newErrors.length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      onComplete(formData);
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+    
+    // Validate email uniqueness before proceeding
+    try {
+      toast({
+        title: "Validating Email",
+        description: "Checking if email is available for registration...",
+      });
+      
+      const response = await apiService.validateRegistrationEmail(formData.institutionEmail);
+      
+      if (response.data?.success) {
+        toast({
+          title: "Email Available",
+          description: "Email validated successfully. Proceeding with registration.",
+        });
+        onComplete(formData);
+      } else {
+        throw new Error(response.data?.message || "Email validation failed");
+      }
+    } catch (error: any) {
+      console.error('Email validation failed:', error);
+      
+      let errorMessage = "Failed to validate email. Please try again.";
+      
+      // Check if it's an email conflict error
+      if (error.response?.status === 409 || error.message?.includes('already registered')) {
+        errorMessage = `Email '${formData.institutionEmail}' is already registered. Please use a different email address or contact support if you believe this is an error.`;
+      }
+      
+      toast({
+        title: "Registration Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
@@ -523,7 +556,7 @@ export const InstitutionDetailsStep = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="principalContact">Principal Contact Number *</Label>
+              <Label htmlFor="principalContact">Principal Contact Number <span className="text-red-500">*</span></Label>
               <Input
                 id="principalContact"
                 type="tel"
@@ -577,7 +610,7 @@ export const InstitutionDetailsStep = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contactPersonPhone">Contact Number *</Label>
+            <Label htmlFor="contactPersonPhone">Contact Number <span className="text-red-500">*</span></Label>
               <Input
                 id="contactPersonPhone"
                 type="tel"

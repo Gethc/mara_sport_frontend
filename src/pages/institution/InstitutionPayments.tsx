@@ -50,6 +50,8 @@ const InstitutionPayments = () => {
   // State for API data
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendingEmails, setSendingEmails] = useState<Set<number>>(new Set());
+  const [processingPayments, setProcessingPayments] = useState<Set<number>>(new Set());
   const [stats, setStats] = useState({
     totalStudents: 0,
     paidStudents: 0,
@@ -62,20 +64,27 @@ const InstitutionPayments = () => {
   // Fetch students data
   const fetchStudents = async () => {
     try {
-      const response = await apiService.getAdminStudents({
-        search: searchTerm || undefined,
-        status: filterStatus !== "all" ? filterStatus : undefined,
-      });
+      const response = await apiService.getInstitutionStudents();
+      console.log('Payment API Response:', response);
       
-      setStudents(response.data || []);
+      // Extract students from the nested response structure
+      let studentsData = [];
+      if (response.data && (response.data as any).data && (response.data as any).data.students) {
+        studentsData = (response.data as any).data.students;
+      } else if (Array.isArray(response.data)) {
+        studentsData = response.data;
+      }
+      
+      console.log('Payment Students Data:', studentsData);
+      setStudents(studentsData);
       
       // Calculate stats
-      const totalStudents = response.data?.length || 0;
-      const paidStudents = response.data?.filter((student: any) => student.payment_status === 'Paid').length || 0;
+      const totalStudents = studentsData.length;
+      const paidStudents = studentsData.filter((student: any) => student.payment_status === 'Paid').length;
       const unpaidStudents = totalStudents - paidStudents;
-      const totalAmount = response.data?.reduce((sum: number, student: any) => sum + (student.total_amount || 0), 0) || 0;
-      const paidAmount = response.data?.filter((student: any) => student.payment_status === 'Paid')
-        .reduce((sum: number, student: any) => sum + (student.paid_amount || 0), 0) || 0;
+      const totalAmount = studentsData.reduce((sum: number, student: any) => sum + (student.total_amount || 0), 0);
+      const paidAmount = studentsData.filter((student: any) => student.payment_status === 'Paid')
+        .reduce((sum: number, student: any) => sum + (student.paid_amount || 0), 0);
       const pendingAmount = totalAmount - paidAmount;
       
       setStats({
@@ -103,8 +112,9 @@ const InstitutionPayments = () => {
   }, [searchTerm, filterStatus]);
 
   const filteredStudents = students.filter(student => {
+    const fullName = `${student.fname || ''} ${student.mname || ''} ${student.lname || ''}`.trim();
     const matchesSearch = !searchTerm || 
-      student.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.student_id?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = filterStatus === "all" || 
@@ -113,12 +123,43 @@ const InstitutionPayments = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handlePayNow = () => {
-    // TODO: Implement payment functionality
-    toast({
-      title: "Feature Coming Soon",
-      description: "Payment functionality will be implemented soon.",
-    });
+  const handlePayNow = async (student: any) => {
+    // Add student ID to processing set
+    setProcessingPayments(prev => new Set(prev).add(student.id));
+    
+    try {
+      const paymentData = {
+        status: "Paid",
+        amount: student.total_amount || 500, // Default amount if not set
+        method: "Online"
+      };
+
+      const response = await apiService.processStudentPayment(student.id, paymentData);
+      
+      if ((response.data as any).success) {
+        toast({
+          title: "Payment Successful",
+          description: `Payment processed for ${student.fname} ${student.lname}`,
+        });
+        fetchStudents(); // Refresh the list
+      } else {
+        throw new Error((response.data as any).message || "Payment failed");
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast({
+        title: "Payment Failed",
+        description: "Failed to process payment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      // Remove student ID from processing set
+      setProcessingPayments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(student.id);
+        return newSet;
+      });
+    }
   };
 
   const handleSponsorshipSubmit = () => {
@@ -130,12 +171,41 @@ const InstitutionPayments = () => {
     setShowSponsorshipForm(false);
   };
 
-  const handleEmailSend = () => {
-    // TODO: Implement email functionality
-    toast({
-      title: "Feature Coming Soon",
-      description: "Email functionality will be implemented soon.",
-    });
+  const handleEmailSend = async (student: any) => {
+    // Add student ID to loading set
+    setSendingEmails(prev => new Set(prev).add(student.id));
+    
+    try {
+      const emailData = {
+        subject: "🏆 Sports Registration Payment - Action Required"
+        // Message will be generated by backend with enhanced template
+      };
+
+      const response = await apiService.sendPaymentLinkToStudent(student.id, emailData);
+      
+      if ((response.data as any).success) {
+        toast({
+          title: "Email Sent Successfully",
+          description: `Payment link sent to ${student.email}`,
+        });
+      } else {
+        throw new Error((response.data as any).message || "Email sending failed");
+      }
+    } catch (error) {
+      console.error('Email error:', error);
+      toast({
+        title: "Email Failed",
+        description: "Failed to send payment link. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      // Remove student ID from loading set
+      setSendingEmails(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(student.id);
+        return newSet;
+      });
+    }
     setShowEmailDialog(false);
   };
 
@@ -291,7 +361,7 @@ const InstitutionPayments = () => {
                       <Users className="h-5 w-5 text-primary" />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="font-medium">{student.full_name}</h4>
+                      <h4 className="font-medium">{`${student.fname || ''} ${student.mname || ''} ${student.lname || ''}`.trim()}</h4>
                       <p className="text-sm text-muted-foreground">
                         ID: {student.student_id} • {student.email}
                       </p>
@@ -310,10 +380,20 @@ const InstitutionPayments = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handlePayNow}
+                      onClick={() => handlePayNow(student)}
+                      disabled={processingPayments.has(student.id)}
                     >
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      Pay Now
+                      {processingPayments.has(student.id) ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          Pay Now
+                        </>
+                      )}
                     </Button>
                     <Button
                       variant="outline"
@@ -326,10 +406,20 @@ const InstitutionPayments = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowEmailDialog(true)}
+                      onClick={() => handleEmailSend(student)}
+                      disabled={sendingEmails.has(student.id)}
                     >
-                      <Send className="h-4 w-4 mr-2" />
-                      Email
+                      {sendingEmails.has(student.id) ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Pay by Student
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
