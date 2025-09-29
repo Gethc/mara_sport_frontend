@@ -1,6 +1,3 @@
-// 
-
-
 /**
  * API Service for Mara Sports Festival
  * Handles all backend communication
@@ -494,6 +491,36 @@ class ApiService {
     return this.request(`/admin/students${queryString ? `?${queryString}` : ''}`);
   }
 
+  async getAdminPayments(params?: { 
+    status_filter?: string; 
+    type_filter?: string; 
+    search?: string; 
+    page?: number; 
+    limit?: number; 
+    sort_by?: string; 
+    sort_order?: string; 
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.status_filter) queryParams.append('status_filter', params.status_filter);
+    if (params?.type_filter) queryParams.append('type_filter', params.type_filter);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page !== undefined) queryParams.append('page', params.page.toString());
+    if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
+    if (params?.sort_by) queryParams.append('sort_by', params.sort_by);
+    if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
+    
+    const queryString = queryParams.toString();
+    return this.request(`/admin/payments${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getPaymentsSummary() {
+    return this.request('/admin/payments/summary');
+  }
+
+  async getPaymentDetails(paymentType: string, paymentId: number) {
+    return this.request(`/admin/payments/${paymentType}/${paymentId}`);
+  }
+
 
   async getAdminInvoices(params?: { search?: string; status?: string; institution?: string }) {
     const queryParams = new URLSearchParams();
@@ -636,13 +663,6 @@ class ApiService {
   }
 
   // Institution Sports Management APIs
-  async getInstitutionSports() {
-    return this.request('/sports/institution/sports');
-  }
-
-  async getInstitutionStudents() {
-    return this.request('/students/institution/students');
-  }
 
   async addSportCategory(sportId: string, data: any) {
     return this.request(`/sports/${sportId}/categories`, {

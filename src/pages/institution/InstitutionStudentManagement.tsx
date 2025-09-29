@@ -59,10 +59,7 @@ const InstitutionStudentManagement = () => {
     address: "",
   });
 
-<<<<<<< HEAD
   const [sportsOptions, setSportsOptions] = useState<{[k:string]: string[]}>({});
-  const [students, setStudents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Fetch students and sports data
   useEffect(() => {
@@ -73,39 +70,25 @@ const InstitutionStudentManagement = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Fetching students...');
+      console.log('Auth token:', localStorage.getItem('authToken'));
+      
       const response = await apiService.getInstitutionStudents({
         search: searchTerm || undefined
       });
+      console.log('📥 API Response:', response);
       
       // Handle institution API response format
       if (response.data && typeof response.data === 'object' && 'success' in response.data) {
         const data = response.data as any;
         if (data.success && data.data) {
           const studentsData = data.data.students || [];
+          console.log('✅ Students found:', studentsData);
           setStudents(studentsData);
         } else {
+          console.log('⚠️ No students in response');
           setStudents([]);
         }
-      } else {
-        setStudents([]);
-      }
-    } catch (error) {
-      console.error('Error fetching students:', error);
-=======
-
-  // Fetch students from database
-  const fetchStudents = async () => {
-    try {
-      setLoading(true);
-      console.log('🔄 Fetching students...');
-      console.log('Auth token:', localStorage.getItem('authToken'));
-      
-      const response = await apiService.getInstitutionStudents();
-      console.log('📥 API Response:', response);
-      
-      if (response.data && (response.data as any).data && (response.data as any).data.students) {
-        console.log('✅ Students found:', (response.data as any).data.students);
-        setStudents((response.data as any).data.students);
       } else {
         console.log('⚠️ No students in response');
         console.log('Response structure:', response);
@@ -151,10 +134,6 @@ const InstitutionStudentManagement = () => {
       console.error('Error fetching sports options:', error);
     }
   };
-
-  useEffect(() => {
-    fetchStudents();
-  }, []);
 
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -539,7 +518,6 @@ const InstitutionStudentManagement = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-<<<<<<< HEAD
               {filteredStudents.map((student) => (
                 <TableRow key={student.id}>
                   <TableCell>
