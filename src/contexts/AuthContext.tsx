@@ -91,42 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return !!(authToken && (storedStudent || adminSession || institutionSession));
   });
 
-  useEffect(() => {
-    // Additional validation on mount - this ensures we have the latest state
-    const storedStudent = localStorage.getItem('student');
-    const adminSession = localStorage.getItem('adminSession');
-    const institutionSession = localStorage.getItem('institutionSession');
-    const authToken = localStorage.getItem('authToken');
-    
-    // Check if we have any valid session
-    const hasValidSession = !!(authToken && (storedStudent || adminSession || institutionSession));
-    
-    if (hasValidSession) {
-      if (storedStudent && !student) {
-        try {
-          const parsedStudent = JSON.parse(storedStudent);
-          setStudent(parsedStudent);
-          setIsAuthenticated(true);
-        } catch (error) {
-          console.error('Error parsing stored student in useEffect:', error);
-          // Clear invalid data
-          localStorage.removeItem('student');
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('adminSession');
-          localStorage.removeItem('institutionSession');
-          setIsAuthenticated(false);
-        }
-      } else if (adminSession || institutionSession) {
-        // Admin or institution session - no student data needed
-        setStudent(null);
-        setIsAuthenticated(true);
-      }
-    } else {
-      // No valid session - clear everything
-      setStudent(null);
-      setIsAuthenticated(false);
-    }
-  }, [student]);
+  // Remove the problematic useEffect that was causing infinite re-renders
+  // The initialization is already handled in the useState initializers above
 
   const loginWithOTP = async (userData: any): Promise<boolean> => {
     try {
@@ -305,7 +271,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Add a function to check authentication status
+  // Add a function to check authentication status (read-only, no state updates)
   const checkAuthStatus = () => {
     const storedStudent = localStorage.getItem('student');
     const adminSession = localStorage.getItem('adminSession');
@@ -313,9 +279,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const authToken = localStorage.getItem('authToken');
     
     if (!authToken || (!storedStudent && !adminSession && !institutionSession)) {
-      // Clear state if no valid session
-      setStudent(null);
-      setIsAuthenticated(false);
       return false;
     }
     
@@ -323,28 +286,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedStudent) {
         const parsedStudent = JSON.parse(storedStudent);
         if (!parsedStudent || !parsedStudent.email) {
-          // Invalid student data
-          setStudent(null);
-          setIsAuthenticated(false);
           return false;
         }
-        
-        // Restore student state if valid
-        setStudent(parsedStudent);
-        setIsAuthenticated(true);
         return true;
       } else if (adminSession || institutionSession) {
-        // Admin or institution session - no student data needed
-        setStudent(null);
-        setIsAuthenticated(true);
         return true;
       }
       
       return false;
     } catch (error) {
       console.error('Error parsing stored session in checkAuthStatus:', error);
-      setStudent(null);
-      setIsAuthenticated(false);
       return false;
     }
   };

@@ -654,9 +654,54 @@ class ApiService {
   }
 
 
-  async deleteSubCategory(subCategoryId: string) {
-    return this.request(`/subcategories/${subCategoryId}`, {
+  async updateCategory(categoryId: string, categoryData: any) {
+    return this.request(`/sports/categories/${categoryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(categoryData)
+    });
+  }
+
+  async deleteCategory(categoryId: string) {
+    return this.request(`/sports/categories/${categoryId}`, {
       method: 'DELETE'
+    });
+  }
+
+  async updateSubCategory(subCategoryId: string, subCategoryData: any) {
+    return this.request(`/sports/subcategories/${subCategoryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(subCategoryData)
+    });
+  }
+
+  async deleteSubCategory(subCategoryId: string) {
+    return this.request(`/sports/subcategories/${subCategoryId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Fee Rules APIs
+  async getSportFeeRules(sportId: string) {
+    return this.request(`/sports/${sportId}/fee-rules`);
+  }
+
+  async createFeeRule(sportId: string, data: any) {
+    return this.request(`/sports/${sportId}/fee-rules`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateFeeRule(feeRuleId: string, data: any) {
+    return this.request(`/sports/fee-rules/${feeRuleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteFeeRule(feeRuleId: string) {
+    return this.request(`/sports/fee-rules/${feeRuleId}`, {
+      method: 'DELETE',
     });
   }
 
@@ -1044,12 +1089,6 @@ class ApiService {
     return this.request(`/fees/fee-rules/sport/${sportId}`);
   }
 
-  async createFeeRule(sportId: number, disciplineCount: number, fee: number) {
-    return this.request('/fees/fee-rules', {
-      method: 'POST',
-      body: JSON.stringify({ sportId, disciplineCount, fee }),
-    });
-  }
 
   async updateFeeRule(ruleId: number, fee: number) {
     return this.request(`/fees/fee-rules/${ruleId}`, {

@@ -35,17 +35,24 @@ const AdminSports = () => {
   const [editingSport, setEditingSport] = useState<any>(null);
   const [editingSubCategory, setEditingSubCategory] = useState<any>(null);
   const [isEditSubCategoryOpen, setIsEditSubCategoryOpen] = useState(false);
-  const [newSport, setNewSport] = useState({ 
+  const [newSport, setNewSport] = useState({
     sportType: "Individual",
     sportName: "",
     ageFrom: "",
     ageTo: "",
     gender: "other",
-    fees: "",
-    participantLimit: ""
+    fee: "",
+    participantLimit: "",
+    minPlayer: "",
+    maxPlayer: ""
   });
   const [categories, setCategories] = useState<any[]>([]);
   const [subCategories, setSubCategories] = useState<any[]>([]);
+  const [feeRules, setFeeRules] = useState<any[]>([]);
+  
+  // Note: Fee rules are now supported for both Individual and Team sports
+  // No need to clear fee rules when switching sport types
+  
   const [newSubCategory, setNewSubCategory] = useState({ 
     parentSport: "", 
     name: "", 
@@ -159,14 +166,6 @@ const AdminSports = () => {
         return;
       }
 
-      if (!newSport.fees || parseFloat(newSport.fees) < 0) {
-        toast({
-          title: "Validation Error",
-          description: "Valid fees amount is required",
-          variant: "destructive",
-        });
-        return;
-      }
 
       // Validate categories
       const validCategories = categories.filter(cat => cat.name.trim());
@@ -201,7 +200,6 @@ const AdminSports = () => {
         age_from: newSport.ageFrom,
         age_to: newSport.ageTo,
         gender: newSport.gender,
-        fee: parseFloat(newSport.fees),
         min_limit: newSport.participantLimit ? parseInt(newSport.participantLimit) : null,
         max_limit: newSport.participantLimit ? parseInt(newSport.participantLimit) : null,
         categories: validCategories.map(category => ({
@@ -220,6 +218,29 @@ const AdminSports = () => {
       // Create sport via API
       const response = await apiService.createSport(sportData);
       
+      // Create fee rules for both Individual and Team sports
+      if (response.data && response.data.success) {
+        const sportId = response.data.data.id;
+        
+        // Create fee rule from the fee field if provided
+        if (newSport.fee && parseFloat(newSport.fee) >= 0) {
+          await apiService.createFeeRule(sportId.toString(), {
+            discipline_count: 1,
+            fee: parseFloat(newSport.fee)
+          });
+        }
+        
+        // Create additional fee rules for Individual sports
+        if (newSport.sportType === "Individual") {
+          for (const rule of feeRules) {
+            await apiService.createFeeRule(sportId.toString(), {
+              discipline_count: rule.discipline_count,
+              fee: rule.fee
+            });
+          }
+        }
+      }
+      
       toast({
         title: "Success",
         description: "Sport created successfully!",
@@ -232,8 +253,10 @@ const AdminSports = () => {
         ageFrom: "",
         ageTo: "",
         gender: "other",
-        fees: "",
-        participantLimit: ""
+        fee: "",
+        participantLimit: "",
+        minPlayer: "",
+        maxPlayer: ""
       });
       setCategories([]);
       setSubCategories([]);
@@ -250,20 +273,84 @@ const AdminSports = () => {
     }
   };
 
-  const handleEditSport = (sport: any) => {
-    setEditingSport(sport);
-    setNewSport({
-      sportType: sport.type || "Individual",
-      sportName: sport.name || sport.sport_name || "",
-      ageFrom: sport.age_from || sport.ageFrom || "",
-      ageTo: sport.age_to || sport.ageTo || "",
-      gender: sport.gender || "other",
-      fees: sport.fees || sport.fee || "",
-      participantLimit: sport.min_limit && sport.max_limit ? `${sport.min_limit}-${sport.max_limit}` : ""
-    });
-    setCategories(sport.categories || []);
-    setSubCategories([]);
-    setIsEditFormOpen(true);
+  const handleEditSport = async (sport: any) => {
+    try {
+      setEditingSport(sport);
+      
+      // Set basic sport data
+      setNewSport({
+        sportType: sport.type || "Individual",
+        sportName: sport.name || sport.sport_name || "",
+        ageFrom: sport.age_from || sport.ageFrom || "",
+        ageTo: sport.age_to || sport.ageTo || "",
+        gender: sport.gender || "other",
+        fee: sport.fee_rules && sport.fee_rules.length > 0 ? sport.fee_rules[0].fee.toString() : (sport.fee ? sport.fee.toString() : ""),
+        participantLimit: sport.type === "Individual" && sport.min_limit && sport.max_limit ? `${sport.min_limit}-${sport.max_limit}` : "",
+        minPlayer: sport.type === "Team" ? (sport.min_limit || "") : "",
+        maxPlayer: sport.type === "Team" ? (sport.max_limit || "") : ""
+      });
+      
+      // Fetch real categories and subcategories from database
+      if (sport.id) {
+        const categoriesResponse = await apiService.getSportCategories(sport.id);
+        if (categoriesResponse.data && categoriesResponse.data.success) {
+          const categoriesData = categoriesResponse.data.data || [];
+          
+          // For each category, fetch its subcategories
+          const categoriesWithSubcategories = await Promise.all(
+            categoriesData.map(async (category: any) => {
+              try {
+                const subcategoriesResponse = await apiService.getSportSubCategories(sport.id, category.id);
+                const subcategories = subcategoriesResponse.data && subcategoriesResponse.data.success 
+                  ? subcategoriesResponse.data.data || []
+                  : [];
+                
+                return {
+                  ...category,
+                  subcategories: subcategories
+                };
+              } catch (error) {
+                console.error(`Error fetching subcategories for category ${category.id}:`, error);
+                return {
+                  ...category,
+                  subcategories: []
+                };
+              }
+            })
+          );
+          
+          setCategories(categoriesWithSubcategories);
+        } else {
+          setCategories([]);
+        }
+        
+        // Load fee rules for this sport (both Individual and Team sports)
+        try {
+          const feeRulesResponse = await apiService.getSportFeeRules(sport.id);
+          if (feeRulesResponse.data && feeRulesResponse.data.success) {
+            setFeeRules(feeRulesResponse.data.data || []);
+          } else {
+            setFeeRules([]);
+          }
+        } catch (error) {
+          console.error('Error fetching fee rules:', error);
+          setFeeRules([]);
+        }
+      } else {
+        setCategories([]);
+        setFeeRules([]);
+      }
+      
+      setSubCategories([]);
+      setIsEditFormOpen(true);
+    } catch (error) {
+      console.error('Error loading sport data for editing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load sport data for editing",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleUpdateSport = async () => {
@@ -305,14 +392,6 @@ const AdminSports = () => {
         return;
       }
 
-      if (!newSport.fees || parseFloat(newSport.fees) < 0) {
-        toast({
-          title: "Validation Error",
-          description: "Valid fees amount is required",
-          variant: "destructive",
-        });
-        return;
-      }
 
       // Validate categories
       const validCategories = categories.filter(cat => cat.name.trim());
@@ -340,31 +419,127 @@ const AdminSports = () => {
         }
       }
 
+      // Parse participant limit based on sport type
+      let minLimit = null;
+      let maxLimit = null;
+      
+      if (newSport.sportType === "Team") {
+        // For team sports, use min/max player fields
+        minLimit = newSport.minPlayer ? parseInt(newSport.minPlayer) : null;
+        maxLimit = newSport.maxPlayer ? parseInt(newSport.maxPlayer) : null;
+      } else {
+        // For individual sports, use the general participant limit
+        if (newSport.participantLimit.trim()) {
+          const parts = newSport.participantLimit.split('-');
+          if (parts.length === 2) {
+            minLimit = parseInt(parts[0].trim());
+            maxLimit = parseInt(parts[1].trim());
+          }
+        }
+      }
+
       // Prepare sport data
       const sportData = {
-        sport_name: newSport.sportName,
+        sport_name: newSport.sportName.trim(),
         type: newSport.sportType,
-        age_from: newSport.ageFrom,
-        age_to: newSport.ageTo,
+        age_from: newSport.ageFrom.trim(),
+        age_to: newSport.ageTo.trim(),
         gender: newSport.gender,
-        fee: parseFloat(newSport.fees),
-        min_limit: newSport.participantLimit ? parseInt(newSport.participantLimit) : null,
-        max_limit: newSport.participantLimit ? parseInt(newSport.participantLimit) : null,
-        categories: validCategories.map(category => ({
-          name: category.name,
-          ageFrom: category.ageFrom,
-          ageTo: category.ageTo,
-          limitPerInstitution: category.limitPerInstitution ? parseInt(category.limitPerInstitution) : null,
-          subCategories: (category.subCategories || []).filter(sub => sub.name.trim()).map(sub => ({
-            name: sub.name,
-            ageFrom: sub.ageFrom,
-            ageTo: sub.ageTo
-          }))
-        }))
+        min_limit: minLimit,
+        max_limit: maxLimit,
+        is_active: true
       };
 
       // Update sport via API
       await apiService.updateSport(parseInt(editingSport.id), sportData);
+      
+      // Update fee rules for both Individual and Team sports
+      if (newSport.fee && parseFloat(newSport.fee) >= 0) {
+        try {
+          if (feeRules.length > 0 && feeRules[0].id) {
+            // Update the first fee rule with the new fee
+            await apiService.updateFeeRule(feeRules[0].id.toString(), {
+              discipline_count: feeRules[0].discipline_count,
+              fee: parseFloat(newSport.fee)
+            });
+          } else {
+            // Create a new fee rule with the fee
+            await apiService.createFeeRule(editingSport.id.toString(), {
+              discipline_count: 1,
+              fee: parseFloat(newSport.fee)
+            });
+          }
+        } catch (error) {
+          console.log('Fee rule update/create error:', error);
+          // If creating fails because it already exists, try to update instead
+          if (error.message && error.message.includes('already exists')) {
+            // Try to get existing fee rules and update the first one
+            const existingRules = await apiService.getSportFeeRules(editingSport.id.toString());
+            if (existingRules.data && existingRules.data.length > 0) {
+              await apiService.updateFeeRule(existingRules.data[0].id.toString(), {
+                discipline_count: existingRules.data[0].discipline_count,
+                fee: parseFloat(newSport.fee)
+              });
+            }
+          }
+        }
+      }
+      
+      // Update other fee rules (only for Individual sports)
+      if (newSport.sportType === "Individual") {
+        for (const rule of feeRules.slice(1)) {
+          if (rule.id) {
+            // Update existing fee rule
+            await apiService.updateFeeRule(rule.id.toString(), {
+              discipline_count: rule.discipline_count,
+              fee: rule.fee
+            });
+          } else {
+            // Create new fee rule
+            await apiService.createFeeRule(editingSport.id.toString(), {
+              discipline_count: rule.discipline_count,
+              fee: rule.fee
+            });
+          }
+        }
+      }
+
+      // Update categories and subcategories
+      for (const category of validCategories) {
+        if (category.id) {
+        // Update existing category
+        await apiService.updateCategory(category.id.toString(), {
+          name: category.name.trim(),
+          is_active: category.is_active !== false
+        });
+      } else {
+        // Create new category
+        await apiService.addSportCategory(editingSport.id.toString(), {
+          name: category.name.trim()
+        });
+      }
+        
+        // Update subcategories for this category
+        const validSubCategories = (category.subcategories || []).filter(sub => sub.name.trim());
+        for (const subcategory of validSubCategories) {
+          if (subcategory.id) {
+            // Update existing subcategory
+            await apiService.updateSubCategory(subcategory.id.toString(), {
+              name: subcategory.name.trim(),
+              age_from: subcategory.age_from || subcategory.ageFrom,
+              age_to: subcategory.age_to || subcategory.ageTo,
+              is_active: subcategory.is_active !== false
+            });
+          } else {
+            // Create new subcategory
+            await apiService.addSportSubCategory(category.id.toString(), {
+              name: subcategory.name.trim(),
+              age_from: subcategory.age_from || subcategory.ageFrom,
+              age_to: subcategory.age_to || subcategory.ageTo
+            });
+          }
+        }
+      }
       
       toast({
         title: "Success",
@@ -379,8 +554,10 @@ const AdminSports = () => {
         ageFrom: "",
         ageTo: "",
         gender: "other",
-        fees: "",
-        participantLimit: ""
+        fee: "",
+        participantLimit: "",
+        minPlayer: "",
+        maxPlayer: ""
       });
       setCategories([]);
       setSubCategories([]);
@@ -496,6 +673,28 @@ const AdminSports = () => {
       toast({
         title: "Error",
         description: "Failed to update sub-category",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      // Delete category via API
+      await apiService.deleteCategory(categoryId);
+      
+      toast({
+        title: "Success",
+        description: "Category deleted successfully!",
+      });
+      
+      // Refresh sports list
+      fetchSports();
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
         variant: "destructive",
       });
     }
@@ -648,28 +847,53 @@ const AdminSports = () => {
                   </Select>
                 </div>
 
-                {/* Fees and Participant Limit */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="fees">Fees (KSh ) *</Label>
-                    <Input
-                      id="fees"
-                      type="number"
-                      value={newSport.fees}
-                      onChange={(e) => setNewSport({...newSport, fees: e.target.value})}
-                      placeholder="e.g., 500, 1000, 1500"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="participantLimit">Participant Limit</Label>
-                    <Input
-                      id="participantLimit"
-                      type="number"
-                      value={newSport.participantLimit}
-                      onChange={(e) => setNewSport({...newSport, participantLimit: e.target.value})}
-                      placeholder="e.g., 50, 100, 200"
-                    />
-                  </div>
+                {/* Participant Limit */}
+                <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+                  {newSport.sportType === "Individual" ? (
+                    <div>
+                      <Label htmlFor="participantLimit">Participant Limit</Label>
+                      <Input
+                        id="participantLimit"
+                        type="number"
+                        value={newSport.participantLimit}
+                        onChange={(e) => setNewSport({...newSport, participantLimit: e.target.value})}
+                        placeholder="e.g., 50, 100, 200"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <Label htmlFor="participantLimit">Team Size Range</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="minPlayer"
+                          type="number"
+                          value={newSport.minPlayer}
+                          onChange={(e) => setNewSport({...newSport, minPlayer: e.target.value})}
+                          placeholder="Min players"
+                        />
+                        <span className="flex items-center text-muted-foreground">to</span>
+                        <Input
+                          id="maxPlayer"
+                          type="number"
+                          value={newSport.maxPlayer}
+                          onChange={(e) => setNewSport({...newSport, maxPlayer: e.target.value})}
+                          placeholder="Max players"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Fee Field */}
+                <div>
+                  <Label htmlFor="fee">Fee (KSh)</Label>
+                  <Input
+                    id="fee"
+                    type="number"
+                    value={newSport.fee || ""}
+                    onChange={(e) => setNewSport({...newSport, fee: e.target.value})}
+                    placeholder="e.g., 500, 1000, 1500"
+                  />
                 </div>
 
                 {/* Categories Section */}
@@ -863,8 +1087,9 @@ const AdminSports = () => {
                       ageFrom: "",
                       ageTo: "",
                       gender: "other",
-                      fees: "",
-                      participantLimit: ""
+                      participantLimit: "",
+        minPlayer: "",
+        maxPlayer: ""
                     });
                     setCategories([]);
                     setSubCategories([]);
@@ -960,29 +1185,124 @@ const AdminSports = () => {
               </Select>
             </div>
 
-            {/* Fees and Participant Limit */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="editFees">Fees (KSh ) *</Label>
-                <Input
-                  id="editFees"
-                  type="number"
-                  value={newSport.fees}
-                  onChange={(e) => setNewSport({...newSport, fees: e.target.value})}
-                  placeholder="e.g., 500, 1000, 1500"
-                />
-              </div>
-              <div>
-                <Label htmlFor="editParticipantLimit">Participant Limit</Label>
-                <Input
-                  id="editParticipantLimit"
-                  type="number"
-                  value={newSport.participantLimit}
-                  onChange={(e) => setNewSport({...newSport, participantLimit: e.target.value})}
-                  placeholder="e.g., 50, 100, 200"
-                />
-              </div>
+            {/* Participant Limit */}
+            <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+              {newSport.sportType === "Individual" ? (
+                <div>
+                  <Label htmlFor="editParticipantLimit">Participant Limit</Label>
+                  <Input
+                    id="editParticipantLimit"
+                    type="number"
+                    value={newSport.participantLimit}
+                    onChange={(e) => setNewSport({...newSport, participantLimit: e.target.value})}
+                    placeholder="e.g., 50, 100, 200"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="editParticipantLimit">Team Size Range</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="editMinPlayer"
+                      type="number"
+                      value={newSport.minPlayer}
+                      onChange={(e) => setNewSport({...newSport, minPlayer: e.target.value})}
+                      placeholder="Min players"
+                    />
+                    <span className="flex items-center text-muted-foreground">to</span>
+                    <Input
+                      id="editMaxPlayer"
+                      type="number"
+                      value={newSport.maxPlayer}
+                      onChange={(e) => setNewSport({...newSport, maxPlayer: e.target.value})}
+                      placeholder="Max players"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Fee Field - Available for both Individual and Team Sports */}
+            <div>
+              <Label htmlFor="editFee">Fee (KSh)</Label>
+              <Input
+                id="editFee"
+                type="number"
+                value={newSport.fee || ""}
+                onChange={(e) => setNewSport({...newSport, fee: e.target.value})}
+                placeholder="e.g., 500, 1000, 1500"
+              />
+            </div>
+
+            {/* Fee Rules Section - Only for Individual Sports */}
+            {newSport.sportType === "Individual" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-lg font-semibold">Fee Rules</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newFeeRule = {
+                        discipline_count: 1,
+                        fee: 0
+                      };
+                      setFeeRules([...feeRules, newFeeRule]);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Fee Rule
+                  </Button>
+                </div>
+                
+                {feeRules.map((rule, ruleIndex) => (
+                  <div key={ruleIndex} className="p-4 border rounded-lg space-y-4 bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Fee Rule {ruleIndex + 1}</h4>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFeeRules(feeRules.filter((_, i) => i !== ruleIndex))}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Discipline Count *</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 1, 2, 3"
+                          value={rule.discipline_count || ''}
+                          onChange={(e) => {
+                            const updated = [...feeRules];
+                            updated[ruleIndex].discipline_count = parseInt(e.target.value) || 1;
+                            setFeeRules(updated);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Fee (KSh) *</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 500, 1000"
+                          value={rule.fee || ''}
+                          onChange={(e) => {
+                            const updated = [...feeRules];
+                            updated[ruleIndex].fee = parseInt(e.target.value) || 0;
+                            setFeeRules(updated);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Categories Section */}
             <div className="space-y-4">
@@ -995,10 +1315,8 @@ const AdminSports = () => {
                   onClick={() => {
                     const newCategory = {
                       name: "",
-                      ageFrom: "",
-                      ageTo: "",
-                      limitPerInstitution: "",
-                      subCategories: []
+                      is_active: true,
+                      subcategories: []
                     };
                     setCategories([...categories, newCategory]);
                   }}
@@ -1028,7 +1346,7 @@ const AdminSports = () => {
                       <Label className="text-xs text-muted-foreground">Category Name *</Label>
                       <Input
                         placeholder="e.g., Track, Field, 1v1, Doubles"
-                        value={category.name}
+                        value={category.name || ''}
                         onChange={(e) => {
                           const updated = [...categories];
                           updated[categoryIndex].name = e.target.value;
@@ -1036,46 +1354,22 @@ const AdminSports = () => {
                         }}
                       />
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Limit per Institution</Label>
-                      <Input
-                        type="number"
-                        placeholder="Optional limit"
-                        value={category.limitPerInstitution}
-                        onChange={(e) => {
-                          const updated = [...categories];
-                          updated[categoryIndex].limitPerInstitution = e.target.value;
-                          setCategories(updated);
-                        }}
-                      />
-                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Age From</Label>
-                      <Input
-                        placeholder="e.g., U9, U11, 12, 15"
-                        value={category.ageFrom}
-                        onChange={(e) => {
-                          const updated = [...categories];
-                          updated[categoryIndex].ageFrom = e.target.value;
-                          setCategories(updated);
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Age To</Label>
-                      <Input
-                        placeholder="e.g., U19, U17, 18, 21"
-                        value={category.ageTo}
-                        onChange={(e) => {
-                          const updated = [...categories];
-                          updated[categoryIndex].ageTo = e.target.value;
-                          setCategories(updated);
-                        }}
-                      />
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`category-active-${categoryIndex}`}
+                      checked={category.is_active !== false}
+                      onChange={(e) => {
+                        const updated = [...categories];
+                        updated[categoryIndex].is_active = e.target.checked;
+                        setCategories(updated);
+                      }}
+                    />
+                    <Label htmlFor={`category-active-${categoryIndex}`} className="text-xs">
+                      Active
+                    </Label>
                   </div>
 
                   {/* Sub-Categories for this Category */}
@@ -1089,11 +1383,12 @@ const AdminSports = () => {
                         onClick={() => {
                           const newSubCategory = {
                             name: "",
-                            ageFrom: "",
-                            ageTo: ""
+                            age_from: "",
+                            age_to: "",
+                            is_active: true
                           };
                           const updated = [...categories];
-                          updated[categoryIndex].subCategories = [...(updated[categoryIndex].subCategories || []), newSubCategory];
+                          updated[categoryIndex].subcategories = [...(updated[categoryIndex].subcategories || []), newSubCategory];
                           setCategories(updated);
                         }}
                       >
@@ -1102,7 +1397,7 @@ const AdminSports = () => {
                       </Button>
                     </div>
                     
-                    {(category.subCategories || []).map((subCat, subIndex) => (
+                    {(category.subcategories || []).map((subCat, subIndex) => (
                       <div key={subIndex} className="p-3 border rounded-lg space-y-3 bg-background">
                         <div className="flex items-center justify-between">
                           <Label className="text-xs font-medium">Sub-Category {subIndex + 1}</Label>
@@ -1112,7 +1407,7 @@ const AdminSports = () => {
                             size="sm"
                             onClick={() => {
                               const updated = [...categories];
-                              updated[categoryIndex].subCategories = updated[categoryIndex].subCategories.filter((_, i) => i !== subIndex);
+                              updated[categoryIndex].subcategories = updated[categoryIndex].subcategories.filter((_, i) => i !== subIndex);
                               setCategories(updated);
                             }}
                             className="text-destructive hover:text-destructive"
@@ -1126,10 +1421,10 @@ const AdminSports = () => {
                             <Label className="text-xs text-muted-foreground">Sub-Category Name *</Label>
                             <Input
                               placeholder="e.g., 50m, 100m, Doubles"
-                              value={subCat.name}
+                              value={subCat.name || ''}
                               onChange={(e) => {
                                 const updated = [...categories];
-                                updated[categoryIndex].subCategories[subIndex].name = e.target.value;
+                                updated[categoryIndex].subcategories[subIndex].name = e.target.value;
                                 setCategories(updated);
                               }}
                             />
@@ -1138,10 +1433,10 @@ const AdminSports = () => {
                             <Label className="text-xs text-muted-foreground">Age From</Label>
                             <Input
                               placeholder="e.g., U9, U11, 12, 15"
-                              value={subCat.ageFrom}
+                              value={subCat.age_from || subCat.ageFrom || ''}
                               onChange={(e) => {
                                 const updated = [...categories];
-                                updated[categoryIndex].subCategories[subIndex].ageFrom = e.target.value;
+                                updated[categoryIndex].subcategories[subIndex].age_from = e.target.value;
                                 setCategories(updated);
                               }}
                             />
@@ -1150,14 +1445,30 @@ const AdminSports = () => {
                             <Label className="text-xs text-muted-foreground">Age To</Label>
                             <Input
                               placeholder="e.g., U19, U17, 18, 21"
-                              value={subCat.ageTo}
+                              value={subCat.age_to || subCat.ageTo || ''}
                               onChange={(e) => {
                                 const updated = [...categories];
-                                updated[categoryIndex].subCategories[subIndex].ageTo = e.target.value;
+                                updated[categoryIndex].subcategories[subIndex].age_to = e.target.value;
                                 setCategories(updated);
                               }}
                             />
                           </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id={`subcategory-active-${categoryIndex}-${subIndex}`}
+                            checked={subCat.is_active !== false}
+                            onChange={(e) => {
+                              const updated = [...categories];
+                              updated[categoryIndex].subcategories[subIndex].is_active = e.target.checked;
+                              setCategories(updated);
+                            }}
+                          />
+                          <Label htmlFor={`subcategory-active-${categoryIndex}-${subIndex}`} className="text-xs">
+                            Active
+                          </Label>
                         </div>
                       </div>
                     ))}
@@ -1176,8 +1487,9 @@ const AdminSports = () => {
                   ageFrom: "",
                   ageTo: "",
                   gender: "other",
-                  fees: "",
-                  participantLimit: ""
+                  participantLimit: "",
+        minPlayer: "",
+        maxPlayer: ""
                 });
                 setCategories([]);
                 setSubCategories([]);
@@ -1299,6 +1611,9 @@ const AdminSports = () => {
                         {sport.type === 'Team' && sport.min_limit && sport.max_limit && 
                           ` | Team Size: ${sport.min_limit}-${sport.max_limit}`
                         }
+                        {sport.fee_rules && sport.fee_rules.length > 0 && 
+                          ` | Fee: KSh ${sport.fee_rules[0].fee}`
+                        }
                       </CardDescription>
                     </div>
                   </div>
@@ -1365,7 +1680,7 @@ const AdminSports = () => {
                                 <div>
                                   <h4 className="font-medium">{category.name}</h4>
                                   <p className="text-sm text-muted-foreground">
-                                    Fee: KSh {category.fee || 0} | Status: {category.is_active ? 'Active' : 'Inactive'}
+                                    Status: {category.is_active ? 'Active' : 'Inactive'}
                                   </p>
                                   {category.subcategories && category.subcategories.length > 0 && (
                                     <p className="text-xs text-muted-foreground mt-1">
@@ -1400,7 +1715,7 @@ const AdminSports = () => {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDeleteSubCategory(category.id)}>
+                                      <AlertDialogAction onClick={() => handleDeleteCategory(category.id)}>
                                         Delete
                                       </AlertDialogAction>
                                     </AlertDialogFooter>
