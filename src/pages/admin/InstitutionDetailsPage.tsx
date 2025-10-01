@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Building2, Users, Trophy, Edit, Save, X, Plus, Trash2, CreditCard, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiService } from '@/services/api';
+import { validatePhoneNumber, validateEmail, handlePhoneChange, handleEmailChange } from '@/utils/validation';
 
 interface Institution {
   id: number;
@@ -73,6 +74,9 @@ interface Sport {
   fee: number;
   is_active: boolean;
   enrolled_students: number;
+  payment_status?: string;
+  total_amount?: number;
+  paid_amount?: number;
 }
 
 interface Student {
@@ -108,6 +112,12 @@ const InstitutionDetailsPage: React.FC = () => {
   const [availableSports, setAvailableSports] = useState<any[]>([]);
   const [loadingSports, setLoadingSports] = useState(false);
 
+  // Pagination states
+  const [sportsCurrentPage, setSportsCurrentPage] = useState(1);
+  const [studentsCurrentPage, setStudentsCurrentPage] = useState(1);
+  const [sportsPerPage] = useState(5);
+  const [studentsPerPage] = useState(5);
+
   // Form data for editing
   const [formData, setFormData] = useState({
     name: '',
@@ -127,7 +137,6 @@ const InstitutionDetailsPage: React.FC = () => {
   const [sportFormData, setSportFormData] = useState({
     sport_id: '',
     fee: '',
-    description: '',
   });
 
   // Form data for adding students
@@ -164,7 +173,65 @@ const InstitutionDetailsPage: React.FC = () => {
         console.log('Phone Number:', instData.institute_information?.phone_number);
         console.log('Website:', instData.institute_information?.website);
         console.log('Principal Name:', instData.institute_information?.principal_name);
+        console.log('Students from institution details:', instData.students);
+        console.log('Sports assignments from institution details:', instData.sports_assignments);
         setInstitution(instData);
+        
+        // Set students from institution details response (convert to expected format)
+        if (instData.students) {
+          console.log('Setting students from institution details:', instData.students);
+          const formattedStudents = instData.students.map((student: any) => ({
+            id: student.id,
+            fname: student.name.split(' ')[0] || '',
+            lname: student.name.split(' ').slice(1).join(' ') || '',
+            mname: '',
+            email: student.email,
+            phone: student.phone,
+            gender: student.gender,
+            student_id: student.student_id,
+            dob: null,
+            address: '',
+            payment_status: 'Pending',
+            total_amount: 0,
+            paid_amount: 0,
+            created_at: new Date().toISOString()
+          }));
+          setStudents(formattedStudents);
+        }
+
+        // Load sports with payment status from separate API
+        try {
+          const sportsResponse = await apiService.getInstitutionSports(parseInt(institutionId || '0'));
+          if ((sportsResponse.data as any)?.success) {
+            setSports((sportsResponse.data as any).data || []);
+          }
+        } catch (error) {
+          console.error('Error loading sports:', error);
+          // Fallback to sports_assignments if sports API fails
+          if (instData.sports_assignments) {
+            console.log('Setting sports from institution details (fallback):', instData.sports_assignments);
+            const sportsMap = new Map();
+            instData.sports_assignments.forEach((assignment: any) => {
+              if (!sportsMap.has(assignment.sport_name)) {
+                sportsMap.set(assignment.sport_name, {
+                  id: assignment.id,
+                  sport_name: assignment.sport_name,
+                  sport_type: assignment.sport_type,
+                  fee: assignment.fee,
+                  enrolled_students: 1,
+                  is_active: true,
+                  description: '',
+                  payment_status: 'No Payments',
+                  total_amount: 0,
+                  paid_amount: 0
+                });
+              } else {
+                sportsMap.get(assignment.sport_name).enrolled_students += 1;
+              }
+            });
+            setSports(Array.from(sportsMap.values()));
+          }
+        }
         
         // Populate form data
         setFormData({
@@ -182,20 +249,7 @@ const InstitutionDetailsPage: React.FC = () => {
         });
       }
 
-      // Load institution sports
-      const sportsResponse = await apiService.getInstitutionSports(parseInt(institutionId || '0'));
-      if ((sportsResponse.data as any)?.success) {
-        setSports((sportsResponse.data as any).data || []);
-      }
-
-      // Load institution students
-      const studentsResponse = await apiService.getInstitutionStudents({ 
-        institution_id: parseInt(institutionId || '0'),
-        limit: 1000 
-      });
-      if ((studentsResponse.data as any)?.success) {
-        setStudents((studentsResponse.data as any).data || []);
-      }
+      // Note: Students and sports data are now loaded from institution details response above
 
     } catch (error) {
       console.error('Error loading institution details:', error);
@@ -288,6 +342,42 @@ const InstitutionDetailsPage: React.FC = () => {
     }).format(amount);
   };
 
+  // Pagination calculations
+  const getSportsPaginatedData = () => {
+    const startIndex = (sportsCurrentPage - 1) * sportsPerPage;
+    const endIndex = startIndex + sportsPerPage;
+    return sports.slice(startIndex, endIndex);
+  };
+
+  const getStudentsPaginatedData = () => {
+    const startIndex = (studentsCurrentPage - 1) * studentsPerPage;
+    const endIndex = startIndex + studentsPerPage;
+    return students.slice(startIndex, endIndex);
+  };
+
+  const getSportsTotalPages = () => {
+    return Math.ceil(sports.length / sportsPerPage);
+  };
+
+  const getStudentsTotalPages = () => {
+    return Math.ceil(students.length / studentsPerPage);
+  };
+
+  // Reset pagination when data changes
+  useEffect(() => {
+    setSportsCurrentPage(1);
+    setStudentsCurrentPage(1);
+  }, [sports, students]);
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case "Paid": return "bg-green-100 text-green-800";
+      case "Pending": return "bg-yellow-100 text-yellow-800";
+      case "No Payments": return "bg-gray-100 text-gray-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -327,6 +417,7 @@ const InstitutionDetailsPage: React.FC = () => {
     }
   };
 
+
   // Handle adding sport to institution
   const handleAddSport = async () => {
     try {
@@ -343,7 +434,6 @@ const InstitutionDetailsPage: React.FC = () => {
         institution_id: parseInt(institutionId || '0'),
         sport_id: parseInt(sportFormData.sport_id),
         fee: parseFloat(sportFormData.fee),
-        description: sportFormData.description,
       };
 
       // Call API to add sport to institution
@@ -355,8 +445,11 @@ const InstitutionDetailsPage: React.FC = () => {
           description: "Sport added to institution successfully",
         });
         setShowAddSportDialog(false);
-        setSportFormData({ sport_id: '', fee: '', description: '' });
-        // Reload institution details
+        setSportFormData({ 
+          sport_id: '', 
+          fee: ''
+        });
+        // Reload institution details (includes sports and students data)
         await loadInstitutionDetails();
       } else {
         throw new Error((response.data as any)?.message || "Failed to add sport");
@@ -418,7 +511,7 @@ const InstitutionDetailsPage: React.FC = () => {
           address: '',
           selectedSports: [],
         });
-        // Reload institution details
+        // Reload institution details (includes sports and students data)
         await loadInstitutionDetails();
       } else {
         throw new Error((response.data as any)?.message || "Failed to add student");
@@ -530,8 +623,9 @@ const InstitutionDetailsPage: React.FC = () => {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={(e) => handleEmailChange(e.target.value, (value) => setFormData(prev => ({ ...prev, email: value })))}
                     className="mt-1"
+                    placeholder="Enter email address"
                   />
                 ) : (
                   <p className="text-lg mt-1">{institution.email}</p>
@@ -566,9 +660,11 @@ const InstitutionDetailsPage: React.FC = () => {
                 {editMode ? (
                   <Input
                     id="phone_number"
+                    type="tel"
                     value={formData.phone_number}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
+                    onChange={(e) => handlePhoneChange(e.target.value, (value) => setFormData(prev => ({ ...prev, phone_number: value })))}
                     className="mt-1"
+                    placeholder="Enter phone number"
                   />
                 ) : (
                   <p className="text-lg mt-1">{institution.institute_information?.phone_number || "N/A"}</p>
@@ -613,6 +709,22 @@ const InstitutionDetailsPage: React.FC = () => {
                   <p className="text-lg mt-1">{institution.institute_information?.principal_name || "N/A"}</p>
                 )}
               </div>
+
+              <div>
+                <Label htmlFor="principal_phone_number">Principal Phone Number</Label>
+                {editMode ? (
+                  <Input
+                    id="principal_phone_number"
+                    type="tel"
+                    value={formData.principal_phone_number}
+                    onChange={(e) => handlePhoneChange(e.target.value, (value) => setFormData(prev => ({ ...prev, principal_phone_number: value })))}
+                    className="mt-1"
+                    placeholder="Enter principal phone number"
+                  />
+                ) : (
+                  <p className="text-lg mt-1">{institution.institute_information?.principal_phone_number || "N/A"}</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -641,8 +753,9 @@ const InstitutionDetailsPage: React.FC = () => {
                     id="contact_person_email"
                     type="email"
                     value={formData.contact_person_email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, contact_person_email: e.target.value }))}
+                    onChange={(e) => handleEmailChange(e.target.value, (value) => setFormData(prev => ({ ...prev, contact_person_email: value })))}
                     className="mt-1"
+                    placeholder="Enter contact person email"
                   />
                 ) : (
                   <p className="text-lg mt-1">{institution.contact_persons?.[0]?.email || "N/A"}</p>
@@ -654,9 +767,11 @@ const InstitutionDetailsPage: React.FC = () => {
                 {editMode ? (
                   <Input
                     id="contact_person_phone"
+                    type="tel"
                     value={formData.contact_person_phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, contact_person_phone: e.target.value }))}
+                    onChange={(e) => handlePhoneChange(e.target.value, (value) => setFormData(prev => ({ ...prev, contact_person_phone: value })))}
                     className="mt-1"
+                    placeholder="Enter contact person phone"
                   />
                 ) : (
                   <p className="text-lg mt-1">{institution.contact_persons?.[0]?.phone || "N/A"}</p>
@@ -819,40 +934,21 @@ const InstitutionDetailsPage: React.FC = () => {
                   <TableHead>Type</TableHead>
                   <TableHead>Fee</TableHead>
                   <TableHead>Enrolled Students</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sports.length > 0 ? (
-                  sports.map((sport) => (
+                {getSportsPaginatedData().length > 0 ? (
+                  getSportsPaginatedData().map((sport) => (
                     <TableRow key={sport.id}>
                       <TableCell className="font-medium">{sport.sport_name}</TableCell>
                       <TableCell>{sport.sport_type}</TableCell>
                       <TableCell className="font-medium text-green-600">{formatCurrency(sport.fee)}</TableCell>
                       <TableCell>{sport.enrolled_students}</TableCell>
-                      <TableCell>
-                        <Badge variant={sport.is_active ? "default" : "secondary"}>
-                          {sport.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {editMode && (
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="outline">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={4} className="text-center text-gray-500 py-8">
                       No sports found for this institution
                     </TableCell>
                   </TableRow>
@@ -860,6 +956,36 @@ const InstitutionDetailsPage: React.FC = () => {
               </TableBody>
             </Table>
           </div>
+          {/* Sports Pagination */}
+          {sports.length > sportsPerPage && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-500">
+                Showing {((sportsCurrentPage - 1) * sportsPerPage) + 1} to {Math.min(sportsCurrentPage * sportsPerPage, sports.length)} of {sports.length} sports
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSportsCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={sportsCurrentPage === 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm">
+                  Page {sportsCurrentPage} of {getSportsTotalPages()}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSportsCurrentPage(prev => Math.min(prev + 1, getSportsTotalPages()))}
+                  disabled={sportsCurrentPage === getSportsTotalPages()}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+
           {editMode && (
             <div className="mt-4">
               <Button 
@@ -899,14 +1025,12 @@ const InstitutionDetailsPage: React.FC = () => {
                   <TableHead>Email</TableHead>
                   <TableHead>Age</TableHead>
                   <TableHead>Gender</TableHead>
-                  <TableHead>Payment Status</TableHead>
-                  <TableHead>Total Amount</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>Sports Enrolled</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {students.length > 0 ? (
-                  students.map((student) => (
+                {getStudentsPaginatedData().length > 0 ? (
+                  getStudentsPaginatedData().map((student) => (
                     <TableRow key={student.id}>
                       <TableCell className="font-medium">
                         {student.fname} {student.mname} {student.lname}
@@ -916,28 +1040,21 @@ const InstitutionDetailsPage: React.FC = () => {
                       <TableCell>{student.dob ? calculateAge(student.dob) : "N/A"}</TableCell>
                       <TableCell>{student.gender}</TableCell>
                       <TableCell>
-                        <Badge variant={student.payment_status === "Paid" ? "default" : "secondary"}>
-                          {student.payment_status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">{formatCurrency(student.total_amount)}</TableCell>
-                      <TableCell>
-                        {editMode && (
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="outline">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {institution.sports_assignments
+                            ?.filter(sa => sa.student_name === `${student.fname} ${student.lname}`)
+                            .map((sport, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {sport.sport_name}
+                              </Badge>
+                            )) || "No sports"}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                       No students found for this institution
                     </TableCell>
                   </TableRow>
@@ -945,6 +1062,36 @@ const InstitutionDetailsPage: React.FC = () => {
               </TableBody>
             </Table>
           </div>
+          {/* Students Pagination */}
+          {students.length > studentsPerPage && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-500">
+                Showing {((studentsCurrentPage - 1) * studentsPerPage) + 1} to {Math.min(studentsCurrentPage * studentsPerPage, students.length)} of {students.length} students
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStudentsCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={studentsCurrentPage === 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm">
+                  Page {studentsCurrentPage} of {getStudentsTotalPages()}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStudentsCurrentPage(prev => Math.min(prev + 1, getStudentsTotalPages()))}
+                  disabled={studentsCurrentPage === getStudentsTotalPages()}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+
           {editMode && (
             <div className="mt-4">
               <Button 
@@ -969,12 +1116,12 @@ const InstitutionDetailsPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Add Sport to Institution</DialogTitle>
             <DialogDescription>
-              Add a new sport to this institution with custom fee and description.
+              Select a sport from the database and assign it to this institution.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div>
-              <Label htmlFor="sport">Select Sport</Label>
+              <Label htmlFor="sport">Select Sport *</Label>
               <Select 
                 value={sportFormData.sport_id} 
                 onValueChange={(value) => setSportFormData(prev => ({ ...prev, sport_id: value }))}
@@ -985,14 +1132,15 @@ const InstitutionDetailsPage: React.FC = () => {
                 <SelectContent>
                   {availableSports.map((sport) => (
                     <SelectItem key={sport.id} value={sport.id.toString()}>
-                      {sport.sport_name} ({sport.sport_type})
+                      {sport.sport_name} ({sport.type})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            
             <div>
-              <Label htmlFor="fee">Fee (₹)</Label>
+              <Label htmlFor="fee">Fee (KSh) *</Label>
               <Input
                 id="fee"
                 type="number"
@@ -1001,15 +1149,7 @@ const InstitutionDetailsPage: React.FC = () => {
                 onChange={(e) => setSportFormData(prev => ({ ...prev, fee: e.target.value }))}
               />
             </div>
-            <div>
-              <Label htmlFor="description">Description (Optional)</Label>
-              <Textarea
-                id="description"
-                placeholder="Enter description"
-                value={sportFormData.description}
-                onChange={(e) => setSportFormData(prev => ({ ...prev, description: e.target.value }))}
-              />
-            </div>
+
             <div className="flex space-x-2 pt-4">
               <Button onClick={handleAddSport} className="flex-1">
                 Add Sport
@@ -1084,16 +1224,17 @@ const InstitutionDetailsPage: React.FC = () => {
                   type="email"
                   placeholder="Enter email"
                   value={studentFormData.email}
-                  onChange={(e) => setStudentFormData(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => handleEmailChange(e.target.value, (value) => setStudentFormData(prev => ({ ...prev, email: value })))}
                 />
               </div>
               <div>
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
+                  type="tel"
                   placeholder="Enter phone number"
                   value={studentFormData.phone}
-                  onChange={(e) => setStudentFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  onChange={(e) => handlePhoneChange(e.target.value, (value) => setStudentFormData(prev => ({ ...prev, phone: value })))}
                 />
               </div>
             </div>

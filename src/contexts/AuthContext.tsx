@@ -83,28 +83,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     // Initialize authentication state from localStorage immediately
     const storedStudent = localStorage.getItem('student');
-    return !!storedStudent;
+    const adminSession = localStorage.getItem('adminSession');
+    const institutionSession = localStorage.getItem('institutionSession');
+    const authToken = localStorage.getItem('authToken');
+    
+    // User is authenticated if they have any valid session and auth token
+    return !!(authToken && (storedStudent || adminSession || institutionSession));
   });
 
   useEffect(() => {
     // Additional validation on mount - this ensures we have the latest state
     const storedStudent = localStorage.getItem('student');
-    if (storedStudent && !student) {
-      try {
-        const parsedStudent = JSON.parse(storedStudent);
-        setStudent(parsedStudent);
+    const adminSession = localStorage.getItem('adminSession');
+    const institutionSession = localStorage.getItem('institutionSession');
+    const authToken = localStorage.getItem('authToken');
+    
+    // Check if we have any valid session
+    const hasValidSession = !!(authToken && (storedStudent || adminSession || institutionSession));
+    
+    if (hasValidSession) {
+      if (storedStudent && !student) {
+        try {
+          const parsedStudent = JSON.parse(storedStudent);
+          setStudent(parsedStudent);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Error parsing stored student in useEffect:', error);
+          // Clear invalid data
+          localStorage.removeItem('student');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('adminSession');
+          localStorage.removeItem('institutionSession');
+          setIsAuthenticated(false);
+        }
+      } else if (adminSession || institutionSession) {
+        // Admin or institution session - no student data needed
+        setStudent(null);
         setIsAuthenticated(true);
-      } catch (error) {
-        console.error('Error parsing stored student in useEffect:', error);
-        // Clear invalid data
-        localStorage.removeItem('student');
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('adminSession');
-        localStorage.removeItem('institutionSession');
-        setIsAuthenticated(false);
       }
-    } else if (!storedStudent && student) {
-      // Clear state if localStorage was cleared externally
+    } else {
+      // No valid session - clear everything
       setStudent(null);
       setIsAuthenticated(false);
     }
@@ -180,26 +198,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return false;
           }
         
-          const adminProfile: Student = {
-            id: 0,
-            fname: 'Admin',
-            lname: 'User',
-            email: email,
-            dob: '',
-            gender: 'Other',
-            fullName: 'Admin User',
-            instituteName: 'System Administration',
-            student_id: 'ADMIN',
-            isEmailVerified: true,
-          };
-          
-          setStudent(adminProfile);
-          setIsAuthenticated(true);
-          localStorage.setItem('student', JSON.stringify(adminProfile));
+          // Don't store admin as student - only store admin session
           localStorage.setItem('adminSession', JSON.stringify({ 
             email: email, 
             role: 'admin' 
           }));
+          
+          // Set authentication state for admin
+          setStudent(null);
+          setIsAuthenticated(true);
           
           return true;
         } else {
@@ -301,30 +308,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Add a function to check authentication status
   const checkAuthStatus = () => {
     const storedStudent = localStorage.getItem('student');
+    const adminSession = localStorage.getItem('adminSession');
+    const institutionSession = localStorage.getItem('institutionSession');
     const authToken = localStorage.getItem('authToken');
     
-    if (!storedStudent || !authToken) {
-      // Clear state if either is missing
+    if (!authToken || (!storedStudent && !adminSession && !institutionSession)) {
+      // Clear state if no valid session
       setStudent(null);
       setIsAuthenticated(false);
       return false;
     }
     
     try {
-      const parsedStudent = JSON.parse(storedStudent);
-      if (!parsedStudent || !parsedStudent.email) {
-        // Invalid student data
+      if (storedStudent) {
+        const parsedStudent = JSON.parse(storedStudent);
+        if (!parsedStudent || !parsedStudent.email) {
+          // Invalid student data
+          setStudent(null);
+          setIsAuthenticated(false);
+          return false;
+        }
+        
+        // Restore student state if valid
+        setStudent(parsedStudent);
+        setIsAuthenticated(true);
+        return true;
+      } else if (adminSession || institutionSession) {
+        // Admin or institution session - no student data needed
         setStudent(null);
-        setIsAuthenticated(false);
-        return false;
+        setIsAuthenticated(true);
+        return true;
       }
       
-      // Restore state if valid
-      setStudent(parsedStudent);
-      setIsAuthenticated(true);
-      return true;
+      return false;
     } catch (error) {
-      console.error('Error parsing stored student in checkAuthStatus:', error);
+      console.error('Error parsing stored session in checkAuthStatus:', error);
       setStudent(null);
       setIsAuthenticated(false);
       return false;

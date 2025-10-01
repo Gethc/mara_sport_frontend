@@ -191,7 +191,7 @@
 //             <CreditCard className="h-4 w-4 text-success" />
 //           </CardHeader>
 //           <CardContent>
-//             <div className="text-2xl font-bold">₹{(stats.total_payments || 0).toLocaleString()}</div>
+//             <div className="text-2xl font-bold">KSh {(stats.total_payments || 0).toLocaleString()}</div>
 //             <p className="text-xs text-muted-foreground">Total collected</p>
 //           </CardContent>
 //         </Card>
@@ -311,10 +311,10 @@
 //                           <span className="font-medium text-muted-foreground">Sports Enrolled:</span> {institution.sports_enrolled}
 //                         </div>
 //                         <div>
-//                           <span className="font-medium text-muted-foreground">Total Amount:</span> ₹{(institution.total_amount || 0).toLocaleString()}
+//                           <span className="font-medium text-muted-foreground">Total Amount:</span> KSh {(institution.total_amount || 0).toLocaleString()}
 //                         </div>
 //                         <div>
-//                           <span className="font-medium text-muted-foreground">Paid Amount:</span> ₹{(institution.paid_amount || 0).toLocaleString()}
+//                           <span className="font-medium text-muted-foreground">Paid Amount:</span> KSh {(institution.paid_amount || 0).toLocaleString()}
 //                         </div>
 //                       </div>
 //                     </div>
@@ -356,9 +356,9 @@
 //                             <div>
 //                               <h4 className="font-medium mb-2">Financial Information</h4>
 //                               <div className="space-y-1 text-sm">
-//                                 <p><span className="font-medium">Total Amount:</span> ₹{(institution.total_amount || 0).toLocaleString()}</p>
-//                                 <p><span className="font-medium">Paid Amount:</span> ₹{(institution.paid_amount || 0).toLocaleString()}</p>
-//                                 <p><span className="font-medium">Pending Amount:</span> ₹{((institution.total_amount || 0) - (institution.paid_amount || 0)).toLocaleString()}</p>
+//                                 <p><span className="font-medium">Total Amount:</span> KSh {(institution.total_amount || 0).toLocaleString()}</p>
+//                                 <p><span className="font-medium">Paid Amount:</span> KSh {(institution.paid_amount || 0).toLocaleString()}</p>
+//                                 <p><span className="font-medium">Pending Amount:</span> KSh {((institution.total_amount || 0) - (institution.paid_amount || 0)).toLocaleString()}</p>
 //                               </div>
 //                             </div>
 //                           </div>
@@ -386,7 +386,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Users, CreditCard, HandHeart, Trophy, Clock, Search, Filter, Eye, AlertCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, Users, CreditCard, Trophy, Clock, Search, Filter, Eye, AlertCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -568,15 +568,13 @@ const AdminDashboard = () => {
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
       case "Paid": return "bg-green-100 text-green-800";
-      case "Partial": return "bg-yellow-100 text-yellow-800";
-      case "Pending": return "bg-red-100 text-red-800";
+      case "Pending": return "bg-yellow-100 text-yellow-800";
+      case "No Payments": return "bg-gray-100 text-gray-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
 
-  const getVerificationStatusColor = (verified: boolean) => {
-    return verified ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800";
-  };
+
 
   if (loading) {
     return (
@@ -598,7 +596,7 @@ const AdminDashboard = () => {
 
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card className="border-l-4 border-l-primary shadow-soft">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Institutions</CardTitle>
@@ -634,16 +632,6 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-destructive shadow-soft">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Verified Institutions</CardTitle>
-            <HandHeart className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.verified_institutions || 0}</div>
-            <p className="text-xs text-muted-foreground">Verified</p>
-          </CardContent>
-        </Card>
 
         <Card className="border-l-4 border-l-success shadow-soft">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -651,7 +639,7 @@ const AdminDashboard = () => {
             <CreditCard className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{(stats.total_completed_amount || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold">KSh {(stats.total_completed_amount || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Total collected</p>
           </CardContent>
         </Card>
@@ -665,7 +653,7 @@ const AdminDashboard = () => {
             <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{(stats.total_pending_amount || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold">KSh {(stats.total_pending_amount || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Click to filter</p>
           </CardContent>
         </Card>
@@ -736,11 +724,8 @@ const AdminDashboard = () => {
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="text-lg font-semibold">{institution.name}</h3>
-                        <Badge className={getVerificationStatusColor(institution.verified)}>
-                          {institution.verified ? "Verified" : "Pending"}
-                        </Badge>
                         <Badge className={getPaymentStatusColor(institution.payment_status)}>
-                          {institution.status}
+                          {institution.payment_status}
                         </Badge>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
@@ -759,10 +744,10 @@ const AdminDashboard = () => {
                           <span className="font-medium text-muted-foreground">Sports Enrolled:</span> {institution.sports_enrolled}
                         </div>
                         <div>
-                          <span className="font-medium text-muted-foreground">Total Amount:</span> ₹{(institution.total_amount || 0).toLocaleString()}
+                          <span className="font-medium text-muted-foreground">Total Amount:</span> KSh {(institution.total_amount || 0).toLocaleString()}
                         </div>
                         <div>
-                          <span className="font-medium text-muted-foreground">Paid Amount:</span> ₹{(institution.paid_amount || 0).toLocaleString()}
+                          <span className="font-medium text-muted-foreground">Paid Amount:</span> KSh {(institution.paid_amount || 0).toLocaleString()}
                         </div>
                       </div>
                     </div>
@@ -821,6 +806,21 @@ const AdminDashboard = () => {
                                         }
                                       </p>
                                     </div>
+                                  </div>
+                                </div>
+
+                                {/* Payment Status */}
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-lg border-b pb-2">Payment Status</h4>
+                                  <div className="flex items-center gap-2">
+                                    <Badge className={getPaymentStatusColor(institution.payment_status)}>
+                                      {institution.payment_status}
+                                    </Badge>
+                                    <span className="text-sm text-muted-foreground">
+                                      Total: KSh {(institution.total_amount || 0).toLocaleString()} | 
+                                      Paid: KSh {(institution.paid_amount || 0).toLocaleString()} | 
+                                      Pending: KSh {((institution.total_amount || 0) - (institution.paid_amount || 0)).toLocaleString()}
+                                    </span>
                                   </div>
                                 </div>
 

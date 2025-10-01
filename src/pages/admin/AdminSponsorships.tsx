@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Search, Filter, Eye, Edit, Trash2, Download, HandHeart, Building2, DollarSign, Calendar, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { validatePhoneNumber, validateEmail, handlePhoneChange, handleEmailChange } from "@/utils/validation";
 
 const AdminSponsorships = () => {
   const { toast } = useToast();
@@ -177,15 +178,16 @@ const AdminSponsorships = () => {
                     <Input
                       type="email"
                       value={sponsorFormData.email}
-                      onChange={(e) => setSponsorFormData({...sponsorFormData, email: e.target.value})}
+                      onChange={(e) => handleEmailChange(e.target.value, (value) => setSponsorFormData({...sponsorFormData, email: value}))}
                       placeholder="Enter email address"
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium">Phone</label>
                     <Input
+                      type="tel"
                       value={sponsorFormData.phone}
-                      onChange={(e) => setSponsorFormData({...sponsorFormData, phone: e.target.value})}
+                      onChange={(e) => handlePhoneChange(e.target.value, (value) => setSponsorFormData({...sponsorFormData, phone: value}))}
                       placeholder="Enter phone number"
                     />
                   </div>
@@ -276,7 +278,7 @@ const AdminSponsorships = () => {
             <Building2 className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">₹0</div>
+            <div className="text-2xl font-bold text-blue-600">KSh 0</div>
             <p className="text-xs text-muted-foreground">Sponsored amount</p>
           </CardContent>
         </Card>
@@ -333,7 +335,7 @@ const AdminSponsorships = () => {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div>
-                          <span className="font-medium text-muted-foreground">Amount:</span> ₹{sponsorship.amount?.toLocaleString() || 0}
+                          <span className="font-medium text-muted-foreground">Amount:</span> KSh {sponsorship.amount?.toLocaleString() || 0}
                         </div>
                         <div>
                           <span className="font-medium text-muted-foreground">Applied Date:</span> {sponsorship.applied_date || "N/A"}
@@ -401,7 +403,7 @@ const AdminSponsorships = () => {
                 <div>
                   <h4 className="font-medium mb-2">Sponsorship Details</h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Amount:</span> ₹{selectedSponsorship.amount?.toLocaleString() || 0}</p>
+                    <p><span className="font-medium">Amount:</span> KSh {selectedSponsorship.amount?.toLocaleString() || 0}</p>
                     <p><span className="font-medium">Status:</span> 
                       <Badge className={`ml-2 ${getStatusColor(selectedSponsorship.status || "Pending")}`}>
                         {selectedSponsorship.status || "Pending"}

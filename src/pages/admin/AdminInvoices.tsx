@@ -251,13 +251,13 @@ const AdminInvoices = () => {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <span className="font-medium text-muted-foreground">Total Amount:</span> ₹{institution.total_amount?.toLocaleString() || 0}
+                          <span className="font-medium text-muted-foreground">Total Amount:</span> KSh {institution.total_amount?.toLocaleString() || 0}
                         </div>
                         <div>
-                          <span className="font-medium text-muted-foreground">Paid Amount:</span> ₹{institution.paid_amount?.toLocaleString() || 0}
+                          <span className="font-medium text-muted-foreground">Paid Amount:</span> KSh {institution.paid_amount?.toLocaleString() || 0}
                         </div>
                         <div>
-                          <span className="font-medium text-muted-foreground">Pending Amount:</span> ₹{(institution.total_amount || 0) - (institution.paid_amount || 0)}
+                          <span className="font-medium text-muted-foreground">Pending Amount:</span> KSh {(institution.total_amount || 0) - (institution.paid_amount || 0)}
                         </div>
                         <div>
                           <span className="font-medium text-muted-foreground">Due Date:</span> N/A
@@ -337,9 +337,9 @@ const AdminInvoices = () => {
               <div>
                 <h4 className="font-medium mb-2">Financial Details</h4>
                 <div className="space-y-2 text-sm">
-                  <p><span className="font-medium">Total Amount:</span> ₹{selectedInvoice.total_amount?.toLocaleString() || 0}</p>
-                  <p><span className="font-medium">Paid Amount:</span> ₹{selectedInvoice.paid_amount?.toLocaleString() || 0}</p>
-                  <p><span className="font-medium">Pending Amount:</span> ₹{(selectedInvoice.total_amount || 0) - (selectedInvoice.paid_amount || 0)}</p>
+                  <p><span className="font-medium">Total Amount:</span> KSh {selectedInvoice.total_amount?.toLocaleString() || 0}</p>
+                  <p><span className="font-medium">Paid Amount:</span> KSh {selectedInvoice.paid_amount?.toLocaleString() || 0}</p>
+                  <p><span className="font-medium">Pending Amount:</span> KSh {(selectedInvoice.total_amount || 0) - (selectedInvoice.paid_amount || 0)}</p>
                 </div>
               </div>
               

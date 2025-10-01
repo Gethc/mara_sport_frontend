@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Filter, Eye, Trash2, Plus, UserPlus, Download, CreditCard, HandHeart, Loader2, AlertCircle, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { validatePhoneNumber, validateEmail, handlePhoneChange, handleEmailChange } from "@/utils/validation";
 import { INSTITUTE_TYPES, getInstituteOptions } from "@/lib/institutionData";
 import { useNavigate } from "react-router-dom";
 
@@ -339,10 +340,10 @@ const AdminInstitutions = () => {
                     </div>
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                       <div>
-                        <span className="font-medium text-muted-foreground">Total Amount:</span> ₹{institution.total_amount?.toLocaleString() || 0}
+                        <span className="font-medium text-muted-foreground">Total Amount:</span> KSh {institution.total_amount?.toLocaleString() || 0}
                       </div>
                       <div>
-                        <span className="font-medium text-muted-foreground">Paid Amount:</span> ₹{institution.paid_amount?.toLocaleString() || 0}
+                        <span className="font-medium text-muted-foreground">Paid Amount:</span> KSh {institution.paid_amount?.toLocaleString() || 0}
                       </div>
                     </div>
                   </div>
@@ -455,7 +456,7 @@ const AdminInstitutions = () => {
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                onChange={(e) => handleEmailChange(e.target.value, (value) => setFormData(prev => ({ ...prev, email: value })))}
                 placeholder="Enter email address"
               />
             </div>

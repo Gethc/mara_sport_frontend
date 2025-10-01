@@ -62,11 +62,19 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   // Check user role and redirect accordingly
+  const adminSession = localStorage.getItem('adminSession');
+  const institutionSession = localStorage.getItem('institutionSession');
   
- 
-  
-  // Default redirect for students
-  return <Navigate to="/dashboard" replace />;
+  if (adminSession) {
+    // Admin user - redirect to admin panel
+    return <Navigate to="/admin" replace />;
+  } else if (institutionSession) {
+    // Institution user - redirect to institution panel
+    return <Navigate to="/institution" replace />;
+  } else {
+    // Default redirect for students
+    return <Navigate to="/dashboard" replace />;
+  }
 };
 
 const App = () => (

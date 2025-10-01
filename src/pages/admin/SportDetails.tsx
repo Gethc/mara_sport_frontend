@@ -280,7 +280,7 @@ const SportDetails = () => {
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">₹{sport.fees}</div>
+                  <div className="text-2xl font-bold">KSh {sport.fees}</div>
                 </CardContent>
               </Card>
             )}
@@ -488,7 +488,7 @@ const SportDetails = () => {
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="fees">Fees (₹)</Label>
+                      <Label htmlFor="fees">Fees (KSh )</Label>
                       <Input
                         id="fees"
                         type="number"
@@ -534,7 +534,7 @@ const SportDetails = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm font-medium">Fees</Label>
-                      <p className="text-sm text-muted-foreground">{sport.fees ? `₹${sport.fees}` : "Not set"}</p>
+                      <p className="text-sm text-muted-foreground">{sport.fees ? `KSh ${sport.fees}` : "Not set"}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium">Participant Limit</Label>

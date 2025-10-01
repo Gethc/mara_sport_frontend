@@ -668,10 +668,17 @@ class ApiService {
     });
   }
 
-  async updateStudentSports(studentId: string, sportsData: any[]) {
-    return this.request(`/students/${studentId}/sports`, {
+  async updateStudentSports(studentId: number, sportsData: any) {
+    return this.request(`/admin/students/${studentId}/sports`, {
       method: 'PUT',
-      body: JSON.stringify({ selectedSports: sportsData }),
+      body: JSON.stringify(sportsData),
+    });
+  }
+
+  async addStudentSport(studentId: number, sportData: any) {
+    return this.request(`/admin/students/${studentId}/sports`, {
+      method: 'POST',
+      body: JSON.stringify(sportData),
     });
   }
 
@@ -1283,6 +1290,14 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(sportData),
     });
+  }
+
+  async getSportCategories(sportId: number) {
+    return this.request(`/admin/sports/${sportId}/categories`);
+  }
+
+  async getSportSubCategories(sportId: number, categoryId: number) {
+    return this.request(`/admin/sports/${sportId}/categories/${categoryId}/subcategories`);
   }
 
   async addInstitutionStudent(studentData: any) {

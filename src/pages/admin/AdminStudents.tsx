@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search, Filter, Eye, Trash2, Download, User, Building2, Calendar, Loader2, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { validatePhoneNumber, validateEmail, handlePhoneChange, handleEmailChange } from "@/utils/validation";
 import { validateAgeForAgeGroup } from "@/lib/ageValidation";
 import { StudentSportsAssignment } from "@/components/admin/StudentSportsAssignment";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -487,7 +488,7 @@ const AdminStudents = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label>Email</Label>
-                  <Input type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} />
+                  <Input type="email" value={addForm.email} onChange={(e) => handleEmailChange(e.target.value, (value) => setAddForm({ ...addForm, email: value }))} />
                 </div>
                 <div>
                   <Label>Student ID</Label>
@@ -608,7 +609,7 @@ const AdminStudents = () => {
                   <Input 
                     type="tel" 
                     value={addForm.phone} 
-                    onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })} 
+                    onChange={(e) => handlePhoneChange(e.target.value, (value) => setAddForm({ ...addForm, phone: value }))} 
                     placeholder="Optional"
                   />
                 </div>

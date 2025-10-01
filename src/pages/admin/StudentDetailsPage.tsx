@@ -8,9 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, User, Building2, Calendar, Trophy, DollarSign, CreditCard, FileText, Loader2, Edit, Save, X } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, User, Building2, Calendar, Trophy, DollarSign, CreditCard, FileText, Loader2, Edit, Save, X, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { validatePhoneNumber, validateEmail, handlePhoneChange, handleEmailChange } from "@/utils/validation";
 
 interface StudentDetails {
   id: number;
@@ -73,6 +76,27 @@ const StudentDetailsPage = () => {
     address: "",
   });
 
+  // Sports management state
+  const [sportsEditMode, setSportsEditMode] = useState(false);
+  const [showAddSportDialog, setShowAddSportDialog] = useState(false);
+  const [availableSports, setAvailableSports] = useState<any[]>([]);
+  const [sportTypes, setSportTypes] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subCategories, setSubCategories] = useState<any[]>([]);
+  const [loadingSports, setLoadingSports] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingSubCategories, setLoadingSubCategories] = useState(false);
+  const [selectedSports, setSelectedSports] = useState<number[]>([]);
+  const [selectedSportFee, setSelectedSportFee] = useState<number | null>(null);
+  const [sportFormData, setSportFormData] = useState({
+    sport_type: '',
+    sport_id: '',
+    category_id: '',
+    sub_category_id: '',
+    age_group: '',
+    gender: '',
+  });
+
   useEffect(() => {
     if (studentId) {
       fetchStudentDetails();
@@ -96,6 +120,8 @@ const StudentDetailsPage = () => {
       if (response.data && response.data.success) {
         console.log("🔍 StudentDetailsPage: Setting student data:", response.data.data);
         const studentData = response.data.data;
+        console.log("🔍 StudentDetailsPage: Sports assignments:", studentData.sports_assignments);
+        console.log("🔍 StudentDetailsPage: Sports assignments length:", studentData.sports_assignments?.length);
         setStudent(studentData);
         
         // Populate edit form
@@ -135,6 +161,7 @@ const StudentDetailsPage = () => {
 
   const handleCancel = () => {
     setEditMode(false);
+    setSportsEditMode(false);
     // Reset form to original values
     if (student) {
       setEditForm({
@@ -191,6 +218,192 @@ const StudentDetailsPage = () => {
     }
   };
 
+  // Sports management functions
+  const handleSportsEdit = () => {
+    setSportsEditMode(true);
+    // Initialize selected sports with current assignments
+    if (student?.sports_assignments) {
+      setSelectedSports(student.sports_assignments.map(assignment => assignment.sport_id));
+    }
+  };
+
+  const handleSportsCancel = () => {
+    setSportsEditMode(false);
+    setSelectedSports([]);
+  };
+
+  const handleSportsSave = async () => {
+    try {
+      setSaving(true);
+      
+      // Update student sports assignments
+      const response = await apiService.updateStudentSports(parseInt(studentId), {
+        sport_ids: selectedSports
+      });
+
+      if (response.data && response.data.success) {
+        toast({
+          title: "Success",
+          description: "Sports assignments updated successfully",
+        });
+        setSportsEditMode(false);
+        setSelectedSports([]);
+        // Refresh student data
+        await fetchStudentDetails();
+      } else {
+        throw new Error(response.data?.message || "Failed to update sports assignments");
+      }
+    } catch (error: any) {
+      console.error('Error updating sports assignments:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update sports assignments",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const loadAvailableSports = async () => {
+    try {
+      setLoadingSports(true);
+      const response = await apiService.getSports();
+      if (response.data && response.data.success) {
+        const sports = response.data.data.sports || [];
+        setAvailableSports(sports);
+        
+        // Extract unique sport types
+        const types = [...new Set(sports.map(sport => sport.type).filter(Boolean))];
+        setSportTypes(types.map(type => ({ id: type, name: type })));
+      }
+    } catch (error) {
+      console.error('Error loading sports:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load available sports",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingSports(false);
+    }
+  };
+
+  const loadCategories = async (sportId: number) => {
+    try {
+      setLoadingCategories(true);
+      const response = await apiService.getSportCategories(sportId);
+      if (response.data && response.data.success) {
+        setCategories(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      setCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const loadSubCategories = async (sportId: number, categoryId: number) => {
+    try {
+      setLoadingSubCategories(true);
+      const response = await apiService.getSportSubCategories(sportId, categoryId);
+      if (response.data && response.data.success) {
+        setSubCategories(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading subcategories:', error);
+      setSubCategories([]);
+    } finally {
+      setLoadingSubCategories(false);
+    }
+  };
+
+  const handleAddSport = async () => {
+    try {
+      setSaving(true);
+      
+      // Validate required fields
+      if (!sportFormData.sport_type || !sportFormData.sport_id || 
+          !sportFormData.age_group || !sportFormData.gender) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await apiService.addStudentSport(parseInt(studentId), {
+        sport_id: parseInt(sportFormData.sport_id),
+        category_id: sportFormData.category_id ? parseInt(sportFormData.category_id) : null,
+        sub_category_id: sportFormData.sub_category_id ? parseInt(sportFormData.sub_category_id) : null,
+        age_group: sportFormData.age_group,
+        gender: sportFormData.gender
+      });
+
+      if (response.data && response.data.success) {
+        toast({
+          title: "Success",
+          description: "Sport assignment added successfully",
+        });
+        setShowAddSportDialog(false);
+        setSportFormData({ 
+          sport_type: '', 
+          sport_id: '', 
+          category_id: '', 
+          sub_category_id: '', 
+          age_group: '', 
+          gender: ''
+        });
+        // Clear dependent data
+        setCategories([]);
+        setSubCategories([]);
+        // Refresh student data
+        await fetchStudentDetails();
+      } else {
+        throw new Error(response.data?.message || "Failed to add sport assignment");
+      }
+    } catch (error: any) {
+      console.error('Error adding sport assignment:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add sport assignment",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveSport = async (assignmentId: number) => {
+    try {
+      setSaving(true);
+      
+      const response = await apiService.deleteSportAssignment(assignmentId);
+
+      if (response.data && response.data.success) {
+        toast({
+          title: "Success",
+          description: "Sport removed successfully",
+        });
+        // Refresh student data
+        await fetchStudentDetails();
+      } else {
+        throw new Error(response.data?.message || "Failed to remove sport");
+      }
+    } catch (error: any) {
+      console.error('Error removing sport:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove sport",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const getStatusColor = (status: boolean | number) => {
     if (typeof status === 'number') {
       return status === 1 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800";
@@ -208,7 +421,7 @@ const StudentDetailsPage = () => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'INR',
+      currency: 'KES',
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(amount);
@@ -395,7 +608,7 @@ const StudentDetailsPage = () => {
                   id="email"
                   type="email"
                   value={editForm.email}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => handleEmailChange(e.target.value, (value) => setEditForm(prev => ({ ...prev, email: value })))}
                   placeholder="Enter email"
                 />
               ) : (
@@ -409,7 +622,7 @@ const StudentDetailsPage = () => {
                   id="phone"
                   type="tel"
                   value={editForm.phone}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                  onChange={(e) => handlePhoneChange(e.target.value, (value) => setEditForm(prev => ({ ...prev, phone: value })))}
                   placeholder="Enter phone number"
                 />
               ) : (
@@ -523,20 +736,298 @@ const StudentDetailsPage = () => {
       {/* Sports Assignments */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5" />
-            Sports Assignments
-          </CardTitle>
-          <CardDescription>
-            {student.sports_assignments?.length || 0} sports assigned
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5" />
+                Sports Assignments
+              </CardTitle>
+              <CardDescription>
+                {student.sports_assignments?.length || 0} sports assigned
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {sportsEditMode ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleSportsCancel}
+                    disabled={saving}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSportsSave}
+                    disabled={saving}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          loadAvailableSports();
+                          setShowAddSportDialog(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Sport
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Add Sport Assignment</DialogTitle>
+                        <DialogDescription>
+                          Assign a new sport to this student with detailed specifications
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-6 mt-4">
+                        {/* Sport Type */}
+                        <div className="space-y-2">
+                          <Label htmlFor="sport-type">Sport Type <span className="text-red-500">*</span></Label>
+                          <Select
+                            value={sportFormData.sport_type}
+                            onValueChange={(value) => {
+                              setSportFormData(prev => ({ 
+                                ...prev, 
+                                sport_type: value,
+                                sport_id: '', // Reset dependent fields
+                                category_id: '',
+                                sub_category_id: ''
+                              }));
+                              setCategories([]);
+                              setSubCategories([]);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select sport type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sportTypes.map((type) => (
+                                <SelectItem key={type.id} value={type.id}>
+                                  {type.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Sport */}
+                        <div className="space-y-2">
+                          <Label htmlFor="sport-select">Sport <span className="text-red-500">*</span></Label>
+                          <Select
+                            value={sportFormData.sport_id}
+                            onValueChange={(value) => {
+                              setSportFormData(prev => ({ 
+                                ...prev, 
+                                sport_id: value,
+                                category_id: '', // Reset dependent fields
+                                sub_category_id: ''
+                              }));
+                              setCategories([]);
+                              setSubCategories([]);
+                              // Load categories for selected sport
+                              if (value) {
+                                loadCategories(parseInt(value));
+                                // Find and set the fee for the selected sport
+                                const selectedSport = availableSports.find(sport => sport.id.toString() === value);
+                                if (selectedSport && selectedSport.fee) {
+                                  setSelectedSportFee(selectedSport.fee);
+                                } else {
+                                  setSelectedSportFee(null);
+                                }
+                              } else {
+                                setSelectedSportFee(null);
+                              }
+                            }}
+                            disabled={!sportFormData.sport_type}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a sport" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableSports
+                                .filter(sport => sport.type === sportFormData.sport_type)
+                                .map((sport) => (
+                                  <SelectItem key={sport.id} value={sport.id.toString()}>
+                                    {sport.sport_name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Category */}
+                        <div className="space-y-2">
+                          <Label htmlFor="category-select">Category</Label>
+                          <Select
+                            value={sportFormData.category_id}
+                            onValueChange={(value) => {
+                              setSportFormData(prev => ({ 
+                                ...prev, 
+                                category_id: value,
+                                sub_category_id: '' // Reset dependent field
+                              }));
+                              setSubCategories([]);
+                              // Load subcategories for selected category
+                              if (value && sportFormData.sport_id) {
+                                loadSubCategories(parseInt(sportFormData.sport_id), parseInt(value));
+                              }
+                            }}
+                            disabled={!sportFormData.sport_id || loadingCategories}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map((category) => (
+                                <SelectItem key={category.id} value={category.id.toString()}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Sub-Category */}
+                        <div className="space-y-2">
+                          <Label htmlFor="sub-category-select">Sub-Category</Label>
+                          <Select
+                            value={sportFormData.sub_category_id}
+                            onValueChange={(value) => setSportFormData(prev => ({ ...prev, sub_category_id: value }))}
+                            disabled={!sportFormData.category_id || loadingSubCategories}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a sub-category (optional)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {subCategories.map((subCategory) => (
+                                <SelectItem key={subCategory.id} value={subCategory.id.toString()}>
+                                  {subCategory.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Age Group and Gender Row */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="age-group-select">Age Group <span className="text-red-500">*</span></Label>
+                            <Select
+                              value={sportFormData.age_group}
+                              onValueChange={(value) => setSportFormData(prev => ({ ...prev, age_group: value }))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select age group" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="9">9 years</SelectItem>
+                                <SelectItem value="10">10 years</SelectItem>
+                                <SelectItem value="11">11 years</SelectItem>
+                                <SelectItem value="12">12 years</SelectItem>
+                                <SelectItem value="13">13 years</SelectItem>
+                                <SelectItem value="14">14 years</SelectItem>
+                                <SelectItem value="15">15 years</SelectItem>
+                                <SelectItem value="16">16 years</SelectItem>
+                                <SelectItem value="17">17 years</SelectItem>
+                                <SelectItem value="18">18 years</SelectItem>
+                                <SelectItem value="19">19 years</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="gender-select">Gender <span className="text-red-500">*</span></Label>
+                            <Select
+                              value={sportFormData.gender}
+                              onValueChange={(value) => setSportFormData(prev => ({ ...prev, gender: value }))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select gender" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {/* Fee Display */}
+                        <div className="space-y-2">
+                          <Label>Fee</Label>
+                          <div className="p-3 bg-gray-50 border rounded-md">
+                            {selectedSportFee !== null ? (
+                              <span className="text-lg font-semibold text-gray-900">
+                                KSh {selectedSportFee.toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-gray-500 italic">
+                                Select a sport to see the fee
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex justify-end gap-2 pt-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setShowAddSportDialog(false);
+                              setSportFormData({ 
+                                sport_type: '', 
+                                sport_id: '', 
+                                category_id: '', 
+                                sub_category_id: '', 
+                                age_group: '', 
+                                gender: ''
+                              });
+                              setCategories([]);
+                              setSubCategories([]);
+                              setSelectedSportFee(null);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleAddSport}
+                            disabled={saving}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            {saving ? "Adding..." : "Add Sport Assignment"}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button
+                    onClick={handleSportsEdit}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Sports
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
+          {console.log("🔍 StudentDetailsPage: Rendering sports assignments, student:", student)}
+          {console.log("🔍 StudentDetailsPage: Sports assignments in render:", student?.sports_assignments)}
           {student.sports_assignments && student.sports_assignments.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {sportsEditMode && <TableHead className="w-12">Select</TableHead>}
                     <TableHead>Sport</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Sub-Category</TableHead>
@@ -545,11 +1036,26 @@ const StudentDetailsPage = () => {
                     <TableHead>Fee</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Assigned Date</TableHead>
+                    {!sportsEditMode && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {student.sports_assignments.map((assignment) => (
                     <TableRow key={assignment.id}>
+                      {sportsEditMode && (
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedSports.includes(assignment.sport_id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedSports(prev => [...prev, assignment.sport_id]);
+                              } else {
+                                setSelectedSports(prev => prev.filter(id => id !== assignment.sport_id));
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">{assignment.sport_name}</TableCell>
                       <TableCell>{assignment.category_name || "N/A"}</TableCell>
                       <TableCell>{assignment.sub_category_name || "N/A"}</TableCell>
@@ -570,6 +1076,19 @@ const StudentDetailsPage = () => {
                       <TableCell>
                         {new Date(assignment.created_at).toLocaleDateString()}
                       </TableCell>
+                      {!sportsEditMode && (
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleRemoveSport(assignment.id)}
+                            disabled={saving}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

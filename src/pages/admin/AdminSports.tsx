@@ -651,7 +651,7 @@ const AdminSports = () => {
                 {/* Fees and Participant Limit */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="fees">Fees (₹) *</Label>
+                    <Label htmlFor="fees">Fees (KSh ) *</Label>
                     <Input
                       id="fees"
                       type="number"
@@ -963,7 +963,7 @@ const AdminSports = () => {
             {/* Fees and Participant Limit */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="editFees">Fees (₹) *</Label>
+                <Label htmlFor="editFees">Fees (KSh ) *</Label>
                 <Input
                   id="editFees"
                   type="number"
@@ -1213,7 +1213,7 @@ const AdminSports = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="editSubCategoryFee">Fee (₹)</Label>
+                <Label htmlFor="editSubCategoryFee">Fee (KSh )</Label>
                 <Input
                   id="editSubCategoryFee"
                   type="number"
@@ -1365,7 +1365,7 @@ const AdminSports = () => {
                                 <div>
                                   <h4 className="font-medium">{category.name}</h4>
                                   <p className="text-sm text-muted-foreground">
-                                    Fee: ₹{category.fee || 0} | Status: {category.is_active ? 'Active' : 'Inactive'}
+                                    Fee: KSh {category.fee || 0} | Status: {category.is_active ? 'Active' : 'Inactive'}
                                   </p>
                                   {category.subcategories && category.subcategories.length > 0 && (
                                     <p className="text-xs text-muted-foreground mt-1">
