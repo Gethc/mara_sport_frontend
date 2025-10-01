@@ -31,19 +31,21 @@ interface Payment {
 
 interface StudentEnrollment {
   id: number;
-  name: string;
-  institution_name: string;
-  age: number;
-  email: string;
-  phone: string;
-  student_id: string;
-  sport: string;
+  name?: string;
+  institution_name?: string;
+  age?: number;
+  email?: string;
+  phone?: string;
+  student_id?: string;
+  sport?: string;
+  sport_name?: string;
   fee: number;
   // Additional fields for student sports enrollments
   category?: string;
   sub_category?: string;
   age_group?: string;
   is_active?: boolean;
+  enrolled_at?: string;
 }
 
 const PaymentDetailsPage: React.FC = () => {
@@ -73,7 +75,12 @@ const PaymentDetailsPage: React.FC = () => {
       if (response.data?.success) {
         const data = response.data.data;
         setPayment(data.payment);
-        setStudentEnrollments(data.student_enrollments || []);
+        // For student payments, use student_sports; for institute payments, use student_enrollments
+        if (paymentType === 'student') {
+          setStudentEnrollments(data.student_sports || []);
+        } else {
+          setStudentEnrollments(data.student_enrollments || []);
+        }
       } else {
         console.error('Failed to load payment details:', response.data);
         toast({
@@ -338,13 +345,13 @@ const PaymentDetailsPage: React.FC = () => {
                   {studentEnrollments.length > 0 ? (
                     studentEnrollments.map((enrollment) => (
                       <TableRow key={enrollment.id}>
-                        <TableCell className="font-medium">{enrollment.name}</TableCell>
-                        <TableCell>{enrollment.institution_name}</TableCell>
-                        <TableCell>{enrollment.age}</TableCell>
-                        <TableCell>{enrollment.email}</TableCell>
-                        <TableCell>{enrollment.phone}</TableCell>
-                        <TableCell>{enrollment.student_id}</TableCell>
-                        <TableCell>{enrollment.sport}</TableCell>
+                        <TableCell className="font-medium">{enrollment.name || "N/A"}</TableCell>
+                        <TableCell>{enrollment.institution_name || "N/A"}</TableCell>
+                        <TableCell>{enrollment.age || "N/A"}</TableCell>
+                        <TableCell>{enrollment.email || "N/A"}</TableCell>
+                        <TableCell>{enrollment.phone || "N/A"}</TableCell>
+                        <TableCell>{enrollment.student_id || "N/A"}</TableCell>
+                        <TableCell>{enrollment.sport || enrollment.sport_name || "N/A"}</TableCell>
                         <TableCell className="font-medium">{formatCurrency(enrollment.fee)}</TableCell>
                       </TableRow>
                     ))
@@ -386,7 +393,7 @@ const PaymentDetailsPage: React.FC = () => {
                   {studentEnrollments.length > 0 ? (
                     studentEnrollments.map((enrollment) => (
                       <TableRow key={enrollment.id}>
-                        <TableCell className="font-medium">{enrollment.sport}</TableCell>
+                        <TableCell className="font-medium">{enrollment.sport || enrollment.sport_name || "N/A"}</TableCell>
                         <TableCell>{enrollment.category || "N/A"}</TableCell>
                         <TableCell>{enrollment.sub_category || "N/A"}</TableCell>
                         <TableCell>{enrollment.age_group || "N/A"}</TableCell>

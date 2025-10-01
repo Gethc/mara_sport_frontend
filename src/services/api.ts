@@ -438,8 +438,14 @@ class ApiService {
   }
 
   async deleteSportAssignment(id: number) {
-    return this.request(`/sport-assignments/${id}`, {
+    return this.request(`/admin/sport-assignments/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async cleanupOrphanedPayments() {
+    return this.request('/admin/cleanup-orphaned-payments', {
+      method: 'POST',
     });
   }
 
@@ -555,6 +561,16 @@ class ApiService {
 
   async getPaymentsSummary() {
     return this.request('/admin/payments/summary');
+  }
+
+  async exportPayments() {
+    const response = await fetch(`${this.baseURL}/admin/payments/export`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+      },
+    });
+    return response;
   }
 
   async getPaymentDetails(paymentType: string, paymentId: number) {

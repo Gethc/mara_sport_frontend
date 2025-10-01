@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, User, Building2, Calendar, Trophy, DollarSign, CreditCard, FileText, Loader2, Edit, Save, X, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -292,9 +293,15 @@ const StudentDetailsPage = () => {
   const loadCategories = async (sportId: number) => {
     try {
       setLoadingCategories(true);
+      console.log('🔍 Loading categories for sport ID:', sportId);
       const response = await apiService.getSportCategories(sportId);
+      console.log('🔍 Categories API response:', response);
       if (response.data && response.data.success) {
+        console.log('🔍 Setting categories:', response.data.data);
         setCategories(response.data.data || []);
+      } else {
+        console.log('🔍 No categories found in response');
+        setCategories([]);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -397,6 +404,34 @@ const StudentDetailsPage = () => {
       toast({
         title: "Error",
         description: error.message || "Failed to remove sport",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCleanupOrphanedPayments = async () => {
+    try {
+      setSaving(true);
+      
+      const response = await apiService.cleanupOrphanedPayments();
+
+      if (response.data && response.data.success) {
+        toast({
+          title: "Success",
+          description: `Cleaned up ${response.data.data.total_deleted} orphaned payment entries`,
+        });
+        // Refresh student data
+        await fetchStudentDetails();
+      } else {
+        throw new Error(response.data?.message || "Failed to cleanup payments");
+      }
+    } catch (error: any) {
+      console.error('Error cleaning up payments:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cleanup payments",
         variant: "destructive",
       });
     } finally {
@@ -710,10 +745,22 @@ const StudentDetailsPage = () => {
       {/* Payment Summary */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Payment Summary
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Payment Summary
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCleanupOrphanedPayments}
+              disabled={saving}
+              className="text-orange-600 hover:text-orange-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {saving ? "Cleaning..." : "Cleanup Orphaned Payments"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1078,15 +1125,36 @@ const StudentDetailsPage = () => {
                       </TableCell>
                       {!sportsEditMode && (
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => handleRemoveSport(assignment.id)}
-                            disabled={saving}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700"
+                                disabled={saving}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Sport Assignment</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to remove <strong>{assignment.sport_name}</strong> from this student's assignments? 
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleRemoveSport(assignment.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </TableCell>
                       )}
                     </TableRow>

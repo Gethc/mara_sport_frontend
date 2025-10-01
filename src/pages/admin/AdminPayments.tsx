@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Filter, Download, RefreshCw, ChevronLeft, ChevronRight, DollarSign, Users, Building2, Clock, CheckCircle } from 'lucide-react';
+import { Search, Filter, Download, ChevronLeft, ChevronRight, DollarSign, Users, Building2, Clock, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiService } from '@/services/api';
 
@@ -63,7 +63,6 @@ const AdminPayments: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [summary, setSummary] = useState<PaymentSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Filters and search
   const [filters, setFilters] = useState({
@@ -181,26 +180,42 @@ const AdminPayments: React.FC = () => {
     setSorting({ sort_by: field, sort_order: newOrder });
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-    toast({
-      title: "Refreshed",
-      description: "Payments data has been updated",
-    });
-  };
 
   const handlePaymentClick = (payment: Payment) => {
     navigate(`/admin/payment-details/${payment.type}/${payment.id}`);
   };
 
-  const handleExport = () => {
-    // TODO: Implement export functionality
-    toast({
-      title: "Export",
-      description: "Export functionality will be implemented soon",
-    });
+  const handleExport = async () => {
+    try {
+      const response = await apiService.exportPayments();
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'payments_export.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: "Success",
+          description: "Payments data exported successfully!",
+        });
+      } else {
+        throw new Error('Export failed');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export payments data. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -238,7 +253,7 @@ const AdminPayments: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-8 h-8 animate-spin" />
+        <div className="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
         <span className="ml-2">Loading payments...</span>
       </div>
     );
@@ -253,10 +268,6 @@ const AdminPayments: React.FC = () => {
           <p className="text-muted-foreground">Manage and monitor all payment transactions</p>
         </div>
         <div className="flex space-x-2">
-          <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
           <Button onClick={handleExport} variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Export

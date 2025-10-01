@@ -23,6 +23,7 @@ const AdminSponsorships = () => {
     phone: "",
     company: "",
     amount: "",
+    type: "partial",
   });
   
   // State for API data
@@ -30,29 +31,53 @@ const AdminSponsorships = () => {
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Calculate summary statistics
+  const totalSponsors = sponsorships.length;
+  const approvedSponsors = sponsorships.filter(s => s.status === 'Approved').length;
+  const pendingApplications = sponsorships.filter(s => s.status === 'Applied' || s.status === 'Pending').length;
+  const totalAmount = sponsorships.reduce((sum, s) => sum + (s.amount || 0), 0);
+
+  // Debug logging
+  console.log('🔍 Current sponsorships state:', sponsorships);
+  console.log('🔍 Total sponsors calculated:', totalSponsors);
+  console.log('🔍 Pending applications calculated:', pendingApplications);
+  console.log('🔍 Total amount calculated:', totalAmount);
+
   // Fetch sponsorships and institutions data
   const fetchData = async () => {
     try {
+      console.log('🔍 Starting to fetch sponsorships data...');
       const [sponsorshipsResponse, institutionsResponse] = await Promise.all([
         apiService.getAdminSponsorships(),
         apiService.getAdminInstitutions()
       ]);
       
-      if (sponsorshipsResponse.data && typeof sponsorshipsResponse.data === 'object') {
+      console.log('🔍 Raw sponsorships response:', sponsorshipsResponse);
+      console.log('🔍 Raw institutions response:', institutionsResponse);
+      
+      if (sponsorshipsResponse && sponsorshipsResponse.data && typeof sponsorshipsResponse.data === 'object') {
         const sponsorshipsData = sponsorshipsResponse.data as any;
+        console.log('🔍 Sponsorships API Response:', sponsorshipsResponse);
+        console.log('🔍 Sponsorships Data:', sponsorshipsData);
+        console.log('🔍 Sponsorships Array:', sponsorshipsData.sponsorships);
+        console.log('🔍 Setting sponsorships to:', sponsorshipsData.sponsorships || []);
         setSponsorships(sponsorshipsData.sponsorships || []);
       } else {
+        console.log('🔍 No sponsorships data in response, response structure:', sponsorshipsResponse);
         setSponsorships([]);
       }
       
-      if (institutionsResponse.data && typeof institutionsResponse.data === 'object') {
+      if (institutionsResponse && institutionsResponse.data && typeof institutionsResponse.data === 'object') {
         const institutionsData = institutionsResponse.data as any;
+        console.log('🔍 Setting institutions to:', institutionsData.institutions || []);
         setInstitutions(institutionsData.institutions || []);
       } else {
+        console.log('🔍 No institutions data in response');
         setInstitutions([]);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('❌ Error fetching data:', error);
+      console.error('❌ Error details:', error);
       toast({
         title: "Error",
         description: "Failed to fetch sponsorships data",
@@ -66,6 +91,12 @@ const AdminSponsorships = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Debug effect to log sponsorships changes
+  useEffect(() => {
+    console.log('🔍 Sponsorships state changed:', sponsorships);
+    console.log('🔍 Sponsorships length:', sponsorships.length);
+  }, [sponsorships]);
 
   const handleViewSponsorship = (sponsorship: any) => {
     setSelectedSponsorship(sponsorship);
@@ -88,14 +119,89 @@ const AdminSponsorships = () => {
     });
   };
 
-  const handleAddSponsor = () => {
-    // TODO: Implement add sponsor functionality
-    toast({
-      title: "Feature Coming Soon",
-      description: "Add sponsor functionality will be implemented soon.",
-    });
-    setShowAddSponsorDialog(false);
-    setSponsorFormData({ name: "", email: "", phone: "", company: "", amount: "" });
+  const handleAddSponsor = async () => {
+    try {
+      // Validate required fields
+      if (!sponsorFormData.name.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Sponsor name is required",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!sponsorFormData.email.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Email is required",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!validateEmail(sponsorFormData.email)) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter a valid email address",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!sponsorFormData.amount || parseFloat(sponsorFormData.amount) <= 0) {
+        toast({
+          title: "Validation Error",
+          description: "Valid amount is required",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Prepare sponsor data
+      const sponsorData = {
+        name: sponsorFormData.name.trim(),
+        email: sponsorFormData.email.trim(),
+        phone: sponsorFormData.phone.trim() || null,
+        company: sponsorFormData.company.trim() || null,
+        amount: parseFloat(sponsorFormData.amount),
+        type: sponsorFormData.type
+      };
+      
+      console.log('🔍 Sending sponsor data:', sponsorData);
+
+      // Create sponsor via API
+      const response = await apiService.createSponsor(sponsorData);
+      
+      console.log('🔍 Create sponsor response:', response);
+      
+      if (response.data && response.data.success) {
+        toast({
+          title: "Success",
+          description: "Sponsor created successfully!",
+        });
+        
+        // Reset form and close dialog
+        setSponsorFormData({ name: "", email: "", phone: "", company: "", amount: "", type: "partial" });
+        setShowAddSponsorDialog(false);
+        
+        // Refresh sponsorships data
+        fetchData();
+      } else {
+        toast({
+          title: "Error",
+          description: response.data?.message || "Failed to create sponsor",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating sponsor:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create sponsor. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const exportSponsorships = () => {
@@ -126,6 +232,15 @@ const AdminSponsorships = () => {
       </div>
     );
   }
+
+  // Debug section - remove this after testing
+  console.log('🔍 Rendering AdminSponsorships with:', {
+    loading,
+    sponsorshipsLength: sponsorships.length,
+    totalSponsors,
+    pendingApplications,
+    totalAmount
+  });
 
   return (
     <div className="space-y-6">
@@ -192,14 +307,31 @@ const AdminSponsorships = () => {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium">Sponsorship Amount</label>
-                  <Input
-                    type="number"
-                    value={sponsorFormData.amount}
-                    onChange={(e) => setSponsorFormData({...sponsorFormData, amount: e.target.value})}
-                    placeholder="Enter sponsorship amount"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Sponsorship Amount</label>
+                    <Input
+                      type="number"
+                      value={sponsorFormData.amount}
+                      onChange={(e) => setSponsorFormData({...sponsorFormData, amount: e.target.value})}
+                      placeholder="Enter sponsorship amount"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Sponsorship Type (Optional)</label>
+                    <Select 
+                      value={sponsorFormData.type} 
+                      onValueChange={(value) => setSponsorFormData({...sponsorFormData, type: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select sponsorship type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="partial">Partial</SelectItem>
+                        <SelectItem value="full">Full</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setShowAddSponsorDialog(false)}>
@@ -248,7 +380,7 @@ const AdminSponsorships = () => {
             <HandHeart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sponsorships.length}</div>
+            <div className="text-2xl font-bold">{totalSponsors}</div>
             <p className="text-xs text-muted-foreground">All time</p>
           </CardContent>
         </Card>
@@ -258,7 +390,7 @@ const AdminSponsorships = () => {
             <DollarSign className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">0</div>
+            <div className="text-2xl font-bold text-green-600">{approvedSponsors}</div>
             <p className="text-xs text-muted-foreground">Active sponsors</p>
           </CardContent>
         </Card>
@@ -268,7 +400,7 @@ const AdminSponsorships = () => {
             <Calendar className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">0</div>
+            <div className="text-2xl font-bold text-yellow-600">{pendingApplications}</div>
             <p className="text-xs text-muted-foreground">Awaiting approval</p>
           </CardContent>
         </Card>
@@ -278,7 +410,7 @@ const AdminSponsorships = () => {
             <Building2 className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">KSh 0</div>
+            <div className="text-2xl font-bold text-blue-600">KSh {totalAmount.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Sponsored amount</p>
           </CardContent>
         </Card>
@@ -291,7 +423,7 @@ const AdminSponsorships = () => {
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              {sponsorships.length} sponsorships
+              {totalSponsors} sponsorships
             </span>
           </div>
         </div>
@@ -314,63 +446,108 @@ const AdminSponsorships = () => {
             {(sponsorships || []).map((sponsorship) => (
               <Card key={sponsorship.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-3 flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold">{sponsorship.name || "N/A"}</h3>
-                        <Badge className={getStatusColor(sponsorship.status || "Pending")}>
-                          {sponsorship.status || "Pending"}
-                        </Badge>
+                  <div className="space-y-4">
+                    {/* Institution Information */}
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-3 flex-1">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-lg font-semibold">{sponsorship.institution?.name || "N/A"}</h3>
+                          <Badge className={getStatusColor(sponsorship.status || "Applied")}>
+                            {sponsorship.status || "Applied"}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
+                          <div>
+                            <span className="font-medium">Institution Type:</span> {sponsorship.institution?.type || "N/A"}
+                          </div>
+                          <div>
+                            <span className="font-medium">Email:</span> {sponsorship.institution?.email || "N/A"}
+                          </div>
+                          <div>
+                            <span className="font-medium">Phone:</span> {sponsorship.institution?.phone || "N/A"}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium text-muted-foreground">Amount:</span> KSh {sponsorship.amount?.toLocaleString() || 0}
+                          </div>
+                          <div>
+                            <span className="font-medium text-muted-foreground">Type:</span> {sponsorship.type || "N/A"}
+                          </div>
+                          <div>
+                            <span className="font-medium text-muted-foreground">Applied Date:</span> {sponsorship.created_at ? new Date(sponsorship.created_at).toLocaleDateString() : "N/A"}
+                          </div>
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium text-muted-foreground">Reason:</span> {sponsorship.reason || "N/A"}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
-                        <div>
-                          <span className="font-medium">Company:</span> {sponsorship.company || "N/A"}
-                        </div>
-                        <div>
-                          <span className="font-medium">Email:</span> {sponsorship.email || "N/A"}
-                        </div>
-                        <div>
-                          <span className="font-medium">Phone:</span> {sponsorship.phone || "N/A"}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium text-muted-foreground">Amount:</span> KSh {sponsorship.amount?.toLocaleString() || 0}
-                        </div>
-                        <div>
-                          <span className="font-medium text-muted-foreground">Applied Date:</span> {sponsorship.applied_date || "N/A"}
-                        </div>
-                        <div>
-                          <span className="font-medium text-muted-foreground">Notes:</span> {sponsorship.notes || "N/A"}
-                        </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewSponsorship(sponsorship)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditSponsorship(sponsorship)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteSponsorship(sponsorship.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewSponsorship(sponsorship)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditSponsorship(sponsorship)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteSponsorship(sponsorship.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </Button>
-                    </div>
+
+                    {/* Students Information */}
+                    {sponsorship.students && sponsorship.students.length > 0 && (
+                      <div className="border-t pt-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium text-sm text-muted-foreground">
+                            Students ({sponsorship.total_students})
+                          </h4>
+                          <span className="text-xs text-muted-foreground">
+                            {sponsorship.total_sports} sports assigned
+                          </span>
+                        </div>
+                        <div className="space-y-3">
+                          {sponsorship.students.map((student: any) => (
+                            <div key={student.id} className="bg-gray-50 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <h5 className="font-medium text-sm">{student.name}</h5>
+                                <span className="text-xs text-muted-foreground">{student.student_id}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground mb-2">
+                                {student.email}
+                              </div>
+                              {student.sports && student.sports.length > 0 && (
+                                <div className="space-y-1">
+                                  <div className="text-xs font-medium text-muted-foreground">Sports:</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {student.sports.map((sport: any, index: number) => (
+                                      <Badge key={index} variant="secondary" className="text-xs">
+                                        {sport.sport_name} (KSh {sport.fee})
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -392,33 +569,65 @@ const AdminSponsorships = () => {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h4 className="font-medium mb-2">Sponsor Information</h4>
+                  <h4 className="font-medium mb-2">Institution Information</h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Name:</span> {selectedSponsorship.name || "N/A"}</p>
-                    <p><span className="font-medium">Company:</span> {selectedSponsorship.company || "N/A"}</p>
-                    <p><span className="font-medium">Email:</span> {selectedSponsorship.email || "N/A"}</p>
-                    <p><span className="font-medium">Phone:</span> {selectedSponsorship.phone || "N/A"}</p>
+                    <p><span className="font-medium">Name:</span> {selectedSponsorship.institution?.name || "N/A"}</p>
+                    <p><span className="font-medium">Type:</span> {selectedSponsorship.institution?.type || "N/A"}</p>
+                    <p><span className="font-medium">Email:</span> {selectedSponsorship.institution?.email || "N/A"}</p>
+                    <p><span className="font-medium">Phone:</span> {selectedSponsorship.institution?.phone || "N/A"}</p>
                   </div>
                 </div>
                 <div>
                   <h4 className="font-medium mb-2">Sponsorship Details</h4>
                   <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Amount:</span> KSh {selectedSponsorship.amount?.toLocaleString() || 0}</p>
+                    <p><span className="font-medium">Type:</span> {selectedSponsorship.type || "N/A"}</p>
                     <p><span className="font-medium">Status:</span> 
-                      <Badge className={`ml-2 ${getStatusColor(selectedSponsorship.status || "Pending")}`}>
-                        {selectedSponsorship.status || "Pending"}
+                      <Badge className={`ml-2 ${getStatusColor(selectedSponsorship.status || "Applied")}`}>
+                        {selectedSponsorship.status || "Applied"}
                       </Badge>
                     </p>
-                    <p><span className="font-medium">Applied Date:</span> {selectedSponsorship.applied_date || "N/A"}</p>
-                    <p><span className="font-medium">Approved Date:</span> {selectedSponsorship.approved_date || "N/A"}</p>
+                    <p><span className="font-medium">Applied Date:</span> {selectedSponsorship.created_at ? new Date(selectedSponsorship.created_at).toLocaleDateString() : "N/A"}</p>
                   </div>
                 </div>
               </div>
               
               <div>
-                <h4 className="font-medium mb-2">Notes</h4>
-                <p className="text-sm text-muted-foreground">{selectedSponsorship.notes || "No notes available"}</p>
+                <h4 className="font-medium mb-2">Reason</h4>
+                <p className="text-sm text-muted-foreground">{selectedSponsorship.reason || "No reason provided"}</p>
               </div>
+
+              {/* Students Information */}
+              {selectedSponsorship.students && selectedSponsorship.students.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-3">Students ({selectedSponsorship.total_students})</h4>
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {selectedSponsorship.students.map((student: any) => (
+                      <div key={student.id} className="border rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-medium text-sm">{student.name}</h5>
+                          <span className="text-xs text-muted-foreground">{student.student_id}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mb-2">
+                          {student.email}
+                        </div>
+                        {student.sports && student.sports.length > 0 && (
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-muted-foreground">Sports:</div>
+                            <div className="flex flex-wrap gap-1">
+                              {student.sports.map((sport: any, index: number) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {sport.sport_name} (KSh {sport.fee})
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               <div>
                 <h4 className="font-medium mb-2">Actions</h4>

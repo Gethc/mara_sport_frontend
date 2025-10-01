@@ -26,7 +26,6 @@ const AdminInstitutions = () => {
   const [selectedInstitution, setSelectedInstitution] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedInstitutionType, setSelectedInstitutionType] = useState("all");
-  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("all");
   const [showSponsorshipInfo, setShowSponsorshipInfo] = useState(false);
   const [showPaymentInfo, setShowPaymentInfo] = useState(false);
   const [formData, setFormData] = useState({
@@ -53,7 +52,6 @@ const AdminInstitutions = () => {
       const searchParams = {
         search: searchTerm,
         institution_type: selectedInstitutionType !== "all" ? selectedInstitutionType : undefined,
-        payment_status: selectedPaymentStatus !== "all" ? selectedPaymentStatus : undefined,
         skip: (page - 1) * institutionsPerPage,
         limit: institutionsPerPage,
       };
@@ -230,7 +228,7 @@ const AdminInstitutions = () => {
   // Trigger search when filters change
   useEffect(() => {
     fetchInstitutions(1); // Reset to first page when filters change
-  }, [selectedInstitutionType, selectedPaymentStatus]);
+  }, [selectedInstitutionType]);
 
   // Use institutions directly since server handles filtering
   const filteredInstitutions = institutions;
@@ -282,17 +280,6 @@ const AdminInstitutions = () => {
                       {type}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedPaymentStatus} onValueChange={setSelectedPaymentStatus}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Payment Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="unpaid">Unpaid</SelectItem>
                 </SelectContent>
               </Select>
             </div>
