@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,8 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Plus, X, User, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { calculateAge, validateAgeForAgeGroup, getValidAgeGroups } from "@/lib/ageValidation";
+import { SPORTS_GENDER_OPTIONS } from "@/lib/sportsData";
 
 interface AddStudentToSportDialogProps {
+  selectedSport?: any;
   onClose: () => void;
   onSave: () => void;
 }
@@ -24,6 +27,7 @@ interface Student {
   age: number;
   gender: string;
   institutionId: string;
+  dob: string;
 }
 
 interface Sport {
@@ -53,7 +57,7 @@ interface SportAssignment {
   gender: string;
 }
 
-const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogProps) => {
+const AddStudentToSportDialog = ({ selectedSport, onClose, onSave }: AddStudentToSportDialogProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -64,11 +68,11 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
   const [searchTerm, setSearchTerm] = useState("");
   
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [selectedSport, setSelectedSport] = useState("");
+  const [selectedSportId, setSelectedSportId] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [selectedAgeGroup, setSelectedAgeGroup] = useState("");
-  const [selectedGender, setSelectedGender] = useState("Open");
+  const [selectedGender, setSelectedGender] = useState("Male");
   
   const [sportAssignments, setSportAssignments] = useState<SportAssignment[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -78,181 +82,29 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
     "Under 12", "12-14", "15-17", "18-20", "21-23", "24-26", "27-29", "30-35", "36-40", "41-45", "46-50", "51+"
   ]);
   
-  const genderOptions = ["Open", "Male", "Female"];
+  // Get valid age groups for the selected student
+  const getValidAgeGroupsForStudent = () => {
+    if (!selectedStudent) return availableAgeGroups;
+    
+    const studentAge = calculateAge(selectedStudent.dob);
+    const validGroups = getValidAgeGroups(studentAge, true);
+    return validGroups.map(group => group.label);
+  };
+  
 
   useEffect(() => {
-    loadDummyData();
+    fetchStudents();
+    fetchSports();
   }, []);
 
-  const loadDummyData = () => {
-    const dummyStudents: Student[] = [
-      {
-        id: "stu1",
-        studentId: "STU001",
-        firstName: "John",
-        lastName: "Doe",
-        fullName: "John Doe",
-        age: 19,
-        gender: "Male",
-        institutionId: "inst1"
-      },
-      {
-        id: "stu2",
-        studentId: "STU002",
-        firstName: "Jane",
-        lastName: "Smith",
-        fullName: "Jane Smith",
-        age: 17,
-        gender: "Female",
-        institutionId: "inst1"
-      },
-      {
-        id: "stu3",
-        studentId: "STU003",
-        firstName: "Mike",
-        lastName: "Johnson",
-        fullName: "Mike Johnson",
-        age: 18,
-        gender: "Male",
-        institutionId: "inst1"
-      },
-      {
-        id: "stu4",
-        studentId: "STU004",
-        firstName: "Sarah",
-        lastName: "Wilson",
-        fullName: "Sarah Wilson",
-        age: 20,
-        gender: "Female",
-        institutionId: "inst1"
-      },
-      {
-        id: "stu5",
-        studentId: "STU005",
-        firstName: "David",
-        lastName: "Brown",
-        fullName: "David Brown",
-        age: 22,
-        gender: "Male",
-        institutionId: "inst1"
-      },
-      {
-        id: "stu6",
-        studentId: "STU006",
-        firstName: "Emma",
-        lastName: "Davis",
-        fullName: "Emma Davis",
-        age: 16,
-        gender: "Female",
-        institutionId: "inst1"
-      }
-    ];
+  // Auto-select sport if provided
+  useEffect(() => {
+    if (selectedSport) {
+      setSelectedSportId(selectedSport.id);
+    }
+  }, [selectedSport]);
 
-    const dummySports: Sport[] = [
-      {
-        id: "1",
-        name: "Football",
-        type: "Team",
-        categories: [
-          {
-            id: "cat1",
-            name: "Men's Football",
-            subCategories: [
-              { id: "sub1", name: "Under-18", gender: "Male", level: 1 },
-              { id: "sub2", name: "Under-21", gender: "Male", level: 2 },
-              { id: "sub3", name: "Senior", gender: "Male", level: 3 }
-            ]
-          },
-          {
-            id: "cat2",
-            name: "Women's Football",
-            subCategories: [
-              { id: "sub4", name: "Under-18", gender: "Female", level: 1 },
-              { id: "sub5", name: "Under-21", gender: "Female", level: 2 },
-              { id: "sub6", name: "Senior", gender: "Female", level: 3 }
-            ]
-          }
-        ]
-      },
-      {
-        id: "2",
-        name: "Basketball",
-        type: "Team",
-        categories: [
-          {
-            id: "cat3",
-            name: "Men's Basketball",
-            subCategories: [
-              { id: "sub7", name: "Under-16", gender: "Male", level: 1 },
-              { id: "sub8", name: "Under-19", gender: "Male", level: 2 },
-              { id: "sub9", name: "Senior", gender: "Male", level: 3 }
-            ]
-          },
-          {
-            id: "cat4",
-            name: "Women's Basketball",
-            subCategories: [
-              { id: "sub10", name: "Under-16", gender: "Female", level: 1 },
-              { id: "sub11", name: "Under-19", gender: "Female", level: 2 },
-              { id: "sub12", name: "Senior", gender: "Female", level: 3 }
-            ]
-          }
-        ]
-      },
-      {
-        id: "3",
-        name: "Tennis",
-        type: "Individual",
-        categories: [
-          {
-            id: "cat5",
-            name: "Singles",
-            subCategories: [
-              { id: "sub13", name: "Men's Singles", gender: "Male", level: 1 },
-              { id: "sub14", name: "Women's Singles", gender: "Female", level: 1 },
-              { id: "sub15", name: "Mixed Singles", gender: "Open", level: 1 }
-            ]
-          },
-          {
-            id: "cat6",
-            name: "Doubles",
-            subCategories: [
-              { id: "sub16", name: "Men's Doubles", gender: "Male", level: 2 },
-              { id: "sub17", name: "Women's Doubles", gender: "Female", level: 2 },
-              { id: "sub18", name: "Mixed Doubles", gender: "Open", level: 2 }
-            ]
-          }
-        ]
-      },
-      {
-        id: "4",
-        name: "Swimming",
-        type: "Individual",
-        categories: [
-          {
-            id: "cat7",
-            name: "Freestyle",
-            subCategories: [
-              { id: "sub19", name: "50m Freestyle", gender: "Open", level: 1 },
-              { id: "sub20", name: "100m Freestyle", gender: "Open", level: 2 },
-              { id: "sub21", name: "200m Freestyle", gender: "Open", level: 3 }
-            ]
-          },
-          {
-            id: "cat8",
-            name: "Backstroke",
-            subCategories: [
-              { id: "sub22", name: "50m Backstroke", gender: "Open", level: 1 },
-              { id: "sub23", name: "100m Backstroke", gender: "Open", level: 2 }
-            ]
-          }
-        ]
-      }
-    ];
-
-    setStudents(dummyStudents);
-    setSports(dummySports);
-  };
+  // Removed dummy data - using real data from API only
 
   useEffect(() => {
     const filtered = students.filter(student =>
@@ -263,15 +115,15 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
   }, [students, searchTerm]);
 
   useEffect(() => {
-    if (selectedSport) {
-      const sport = sports.find(s => s.id === selectedSport);
+    if (selectedSportId) {
+      const sport = sports.find(s => s.id === selectedSportId);
       if (sport) {
         setCategories(sport.categories);
         setSelectedCategory("");
         setSelectedSubCategory("");
       }
     }
-  }, [selectedSport, sports]);
+  }, [selectedSportId, sports]);
 
   useEffect(() => {
     if (selectedCategory) {
@@ -287,7 +139,24 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
     try {
       setLoading(true);
       const response = await apiService.getInstitutionStudents();
-      setStudents(response.data || []);
+      
+      if (response.data && (response.data as any).data && (response.data as any).data.students) {
+        // Transform the response to match the expected interface
+        const transformedStudents = (response.data as any).data.students.map((student: any) => ({
+          id: student.id.toString(),
+          studentId: student.student_id || '',
+          firstName: student.fname || '',
+          lastName: student.lname || '',
+          fullName: `${student.fname || ''} ${student.lname || ''}`.trim(),
+          age: student.dob ? calculateAge(student.dob) : 18, // Calculate age from DOB
+          gender: student.gender || 'Other',
+          institutionId: student.institute_id?.toString() || '',
+          dob: student.dob || ''
+        }));
+        setStudents(transformedStudents);
+      } else {
+        setStudents([]);
+      }
     } catch (error) {
       console.error("Error fetching students:", error);
       toast({
@@ -295,6 +164,7 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
         description: "Failed to fetch students",
         variant: "destructive",
       });
+      setStudents([]);
     } finally {
       setLoading(false);
     }
@@ -303,7 +173,19 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
   const fetchSports = async () => {
     try {
       const response = await apiService.getInstitutionSports();
-      setSports(response.data || []);
+      
+      if (response.data && (response.data as any).data && (response.data as any).data.sports) {
+        // Transform the response to match the expected interface
+        const transformedSports = (response.data as any).data.sports.map((sport: any) => ({
+          id: sport.id,
+          name: sport.name,
+          type: sport.type,
+          categories: sport.categories || []
+        }));
+        setSports(transformedSports);
+      } else {
+        setSports([]);
+      }
     } catch (error) {
       console.error("Error fetching sports:", error);
       toast({
@@ -311,16 +193,48 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
         description: "Failed to fetch sports",
         variant: "destructive",
       });
+      setSports([]);
     }
   };
 
   const handleStudentSelect = (student: Student) => {
     setSelectedStudent(student);
     setSportAssignments([]);
+    
+    // If sport is pre-selected, auto-assign with default values
+    if (selectedSport && selectedSport.categories && selectedSport.categories.length > 0) {
+      const firstCategory = selectedSport.categories[0];
+      const firstSubCategory = firstCategory.subCategories && firstCategory.subCategories.length > 0 
+        ? firstCategory.subCategories[0] 
+        : null;
+      
+      if (firstSubCategory) {
+        const assignment: SportAssignment = {
+          sportId: selectedSport.id,
+          sportName: selectedSport.name,
+          categoryId: firstCategory.id,
+          categoryName: firstCategory.name,
+          subCategoryId: firstSubCategory.id,
+          subCategoryName: firstSubCategory.name,
+          ageGroup: selectedStudent && selectedStudent.dob ? 
+            getValidAgeGroupsForStudent()[0] || "U10" : "U10",
+          gender: "Male",
+        };
+        
+        setSportAssignments([assignment]);
+        
+        // Set form values
+        setSelectedSportId(selectedSport.id);
+        setSelectedCategory(firstCategory.id);
+        setSelectedSubCategory(firstSubCategory.id);
+        setSelectedAgeGroup("18-20");
+        setSelectedGender("Male");
+      }
+    }
   };
 
   const handleAddSportAssignment = () => {
-    if (!selectedSport || !selectedCategory || !selectedSubCategory || !selectedAgeGroup) {
+    if (!selectedSportId || !selectedCategory || !selectedSubCategory || !selectedAgeGroup) {
       toast({
         title: "Error",
         description: "Please fill in all sport assignment details",
@@ -329,14 +243,29 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
       return;
     }
 
-    const sport = sports.find(s => s.id === selectedSport);
+    // Validate student age against selected age group
+    if (selectedStudent) {
+      const studentAge = calculateAge(selectedStudent.dob);
+      const ageValidation = validateAgeForAgeGroup(studentAge, selectedAgeGroup, true);
+      
+      if (!ageValidation.isValid) {
+        toast({
+          title: "Age Validation Error",
+          description: ageValidation.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    const sport = sports.find(s => s.id === selectedSportId);
     const category = categories.find(c => c.id === selectedCategory);
     const subCategory = subCategories.find(sc => sc.id === selectedSubCategory);
 
     if (!sport || !category || !subCategory) return;
 
     const assignment: SportAssignment = {
-      sportId: selectedSport,
+      sportId: selectedSportId,
       sportName: sport.name,
       categoryId: selectedCategory,
       categoryName: category.name,
@@ -364,12 +293,14 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
 
     setSportAssignments([...sportAssignments, assignment]);
     
-    // Reset form
-    setSelectedSport("");
+    // Reset form (but keep the sport if it was pre-selected)
+    if (!selectedSport) {
+      setSelectedSportId("");
+    }
     setSelectedCategory("");
     setSelectedSubCategory("");
     setSelectedAgeGroup("");
-    setSelectedGender("Open");
+    setSelectedGender("Male");
   };
 
   const handleRemoveAssignment = (index: number) => {
@@ -401,13 +332,27 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
       }));
 
       // Assign sports to student
-      await apiService.assignStudentSports(selectedStudent.id, {
+      await apiService.assignStudentSports(parseInt(selectedStudent.id), {
         assignments,
       });
 
+      // Calculate total amount for sports (₹500 per sport)
+      const totalAmount = sportAssignments.length * 500;
+
+      // Update student's total amount
+      const paymentData = {
+        status: "Unpaid", // Set as unpaid initially
+        amount: 0, // No payment made yet
+        method: "Pending",
+        total_amount: totalAmount
+      };
+
+      // Update student payment information
+      await apiService.processStudentPayment(parseInt(selectedStudent.id), paymentData);
+
       toast({
         title: "Success",
-        description: `${sportAssignments.length} sport(s) assigned to ${selectedStudent.fullName} successfully`,
+        description: `${sportAssignments.length} sport(s) assigned to ${selectedStudent.fullName} successfully. Total amount: ₹${totalAmount}`,
       });
 
       onSave();
@@ -438,6 +383,9 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
           <DialogTitle>Assign Sports to Student</DialogTitle>
+          <DialogDescription>
+            Select sports and categories for the student. You can assign multiple sports with different age groups and categories.
+          </DialogDescription>
         </DialogHeader>
 
         {errors.length > 0 && (
@@ -544,8 +492,8 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
               {/* Sport Selection Form */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sport">Sport *</Label>
-                  <Select value={selectedSport} onValueChange={setSelectedSport}>
+                  <Label htmlFor="sport">Sport <span className="text-red-500">*</span></Label>
+                  <Select value={selectedSportId} onValueChange={setSelectedSportId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select sport" />
                     </SelectTrigger>
@@ -560,11 +508,11 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category *</Label>
+                  <Label htmlFor="category">Category <span className="text-red-500">*</span></Label>
                   <Select 
                     value={selectedCategory} 
                     onValueChange={setSelectedCategory}
-                    disabled={!selectedSport}
+                    disabled={!selectedSportId}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
@@ -580,7 +528,7 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="subCategory">Sub-Category *</Label>
+                  <Label htmlFor="subCategory">Sub-Category <span className="text-red-500">*</span></Label>
                   <Select 
                     value={selectedSubCategory} 
                     onValueChange={setSelectedSubCategory}
@@ -600,13 +548,13 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ageGroup">Age Group *</Label>
+                  <Label htmlFor="ageGroup">Age Group <span className="text-red-500">*</span></Label>
                   <Select value={selectedAgeGroup} onValueChange={setSelectedAgeGroup}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select age group" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableAgeGroups.map((ageGroup) => (
+                      {getValidAgeGroupsForStudent().map((ageGroup) => (
                         <SelectItem key={ageGroup} value={ageGroup}>
                           {ageGroup}
                         </SelectItem>
@@ -616,13 +564,13 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gender">Gender *</Label>
+                  <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
                   <Select value={selectedGender} onValueChange={setSelectedGender}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                     <SelectContent>
-                      {genderOptions.map((gender) => (
+                      {SPORTS_GENDER_OPTIONS.map((gender) => (
                         <SelectItem key={gender} value={gender}>
                           {gender}
                         </SelectItem>
@@ -635,7 +583,7 @@ const AddStudentToSportDialog = ({ onClose, onSave }: AddStudentToSportDialogPro
                   <Label>&nbsp;</Label>
                   <Button 
                     onClick={handleAddSportAssignment}
-                    disabled={!selectedSport || !selectedCategory || !selectedSubCategory || !selectedAgeGroup}
+                    disabled={!selectedSportId || !selectedCategory || !selectedSubCategory || !selectedAgeGroup}
                     className="w-full"
                   >
                     <Plus className="h-4 w-4 mr-2" />

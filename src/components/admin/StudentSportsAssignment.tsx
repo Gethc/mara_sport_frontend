@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Trophy, Plus, Trash2, Users, Target, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { validateAgeForAgeGroup } from "@/lib/ageValidation";
+import { GENDER_OPTIONS } from "@/lib/sportsData";
 
 interface StudentSportsAssignmentProps {
   selectedSports: Array<{
@@ -46,12 +48,11 @@ export const StudentSportsAssignment = ({
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [selectedAgeGroup, setSelectedAgeGroup] = useState("");
-  const [selectedGender, setSelectedGender] = useState("Open");
+  const [selectedGender, setSelectedGender] = useState("Male");
 
   // Age groups for selection
   const allAgeGroups = ["U6", "U8", "U10", "U12", "U14", "U16", "U18", "U20", "Senior"];
   const [availableAgeGroups, setAvailableAgeGroups] = useState<string[]>(allAgeGroups);
-  const genderOptions = ["Male", "Female", "Open"];
   const sportTypes = ["Individual", "Team"];
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export const StudentSportsAssignment = ({
     try {
       setLoading(true);
       const response = await apiService.getSports();
-      setSports(response.data || []);
+      setSports((response.data as any[]) || []);
     } catch (error) {
       console.error('Error fetching sports:', error);
       toast({
@@ -77,8 +78,8 @@ export const StudentSportsAssignment = ({
 
   const fetchCategories = async (sportId: string) => {
     try {
-      const response = await apiService.getSportCategories(sportId);
-      setCategories(response.data || []);
+      const response = await apiService.getSportCategories(parseInt(sportId));
+      setCategories((response.data as any[]) || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
       setCategories([]);
@@ -87,8 +88,8 @@ export const StudentSportsAssignment = ({
 
   const fetchSubCategories = async (categoryId: string) => {
     try {
-      const response = await apiService.getSubCategories(categoryId);
-      setSubCategories(response.data || []);
+      const response = await apiService.getSubCategories(parseInt(categoryId));
+      setSubCategories((response.data as any[]) || []);
     } catch (error) {
       console.error('Error fetching sub-categories:', error);
       setSubCategories([]);
@@ -185,6 +186,14 @@ export const StudentSportsAssignment = ({
     if (!selectedAgeGroup) newErrors.push("Please select an age group");
     if (!selectedGender) newErrors.push("Please select gender");
     
+    // Validate age if student age is provided
+    if (studentAge && selectedAgeGroup) {
+      const ageValidation = validateAgeForAgeGroup(studentAge, selectedAgeGroup, false);
+      if (!ageValidation.isValid) {
+        newErrors.push(ageValidation.message || "Student age does not match selected age group");
+      }
+    }
+    
     // Check for duplicates
     const duplicate = selectedSports.find(
       item => item.sportId === selectedSport && 
@@ -222,7 +231,7 @@ export const StudentSportsAssignment = ({
     setSelectedCategory("");
     setSelectedSubCategory("");
     setSelectedAgeGroup("");
-    setSelectedGender("Open");
+    setSelectedGender("Male");
     setCategories([]);
     setSubCategories([]);
     setAvailableAgeGroups(allAgeGroups);
@@ -409,7 +418,7 @@ export const StudentSportsAssignment = ({
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
-                  {genderOptions.map((gender) => (
+                  {GENDER_OPTIONS.map((gender) => (
                     <SelectItem key={gender} value={gender}>
                       {gender}
                     </SelectItem>

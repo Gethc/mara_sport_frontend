@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { UserPlus, Plus, Trash2, Users, Trophy, Target, Loader2 } from "lucide-react";
 import { apiService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { GENDER_OPTIONS, SPORTS_GENDER_OPTIONS } from "@/lib/sportsData";
 
 interface SportStudentAddStepProps {
   initialData?: any;
@@ -20,7 +21,6 @@ interface SportStudentAddStepProps {
 // Constants
 const SPORT_TYPES = ["Individual", "Team"];
 const AGE_CATEGORIES = ["U9", "U11", "U13", "U15", "U17", "U19"];
-const GENDER_OPTIONS = ["Open", "Male", "Female", "Mixed"];
 
 interface Student {
   fname: string;
@@ -57,7 +57,6 @@ interface SportTeam {
   subCategoryId?: number;
 }
 
-const genderOptions = ["Male", "Female", "Other"];
 
 export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportStudentAddStepProps) => {
   const { toast } = useToast();
@@ -75,7 +74,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
   const [currentSubCategory, setCurrentSubCategory] = useState("");
   const [currentAgeFrom, setCurrentAgeFrom] = useState("");
   const [currentAgeTo, setCurrentAgeTo] = useState("");
-  const [currentGender, setCurrentGender] = useState("Open");
+  const [currentGender, setCurrentGender] = useState("Male");
   
   const [currentStudent, setCurrentStudent] = useState<Student>({
     fname: "",
@@ -321,7 +320,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
     setCurrentSubCategory("");
     setCurrentAgeFrom("");
     setCurrentAgeTo("");
-    setCurrentGender("Open");
+    setCurrentGender("Male");
     setErrors([]);
     
     toast({
@@ -515,7 +514,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sportType">Sport Type *</Label>
+              <Label htmlFor="sportType">Sport Type <span className="text-red-500">*</span></Label>
               <Select 
                 value={currentSportType} 
                 onValueChange={(value) => {
@@ -539,7 +538,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sport">Sport *</Label>
+              <Label htmlFor="sport">Sport <span className="text-red-500">*</span></Label>
               <Select 
                 value={currentSport} 
                 onValueChange={(value) => {
@@ -604,7 +603,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ageFrom">Age From *</Label>
+              <Label htmlFor="ageFrom">Age From <span className="text-red-500">*</span></Label>
               <Select 
                 value={currentAgeFrom} 
                 onValueChange={setCurrentAgeFrom}
@@ -622,7 +621,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ageTo">Age To *</Label>
+              <Label htmlFor="ageTo">Age To <span className="text-red-500">*</span></Label>
               <Select 
                 value={currentAgeTo} 
                 onValueChange={setCurrentAgeTo}
@@ -640,7 +639,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="gender">Gender *</Label>
+              <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
               <Select 
                 value={currentGender} 
                 onValueChange={setCurrentGender}
@@ -649,10 +648,9 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Mixed">Mixed</SelectItem>
+                  {SPORTS_GENDER_OPTIONS.map((gender) => (
+                    <SelectItem key={gender} value={gender}>{gender}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -692,7 +690,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="teamSelect">Select Team *</Label>
+                <Label htmlFor="teamSelect">Select Team <span className="text-red-500">*</span></Label>
                 <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a team to add students" />
@@ -708,7 +706,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fname">First Name *</Label>
+                <Label htmlFor="fname">First Name <span className="text-red-500">*</span></Label>
                 <Input
                   id="fname"
                   value={currentStudent.fname}
@@ -728,7 +726,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="lname">Last Name *</Label>
+                <Label htmlFor="lname">Last Name <span className="text-red-500">*</span></Label>
                 <Input
                   id="lname"
                   value={currentStudent.lname}
@@ -738,7 +736,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="student_id">Student ID *</Label>
+                <Label htmlFor="student_id">Student ID <span className="text-red-500">*</span></Label>
                 <Input
                   id="student_id"
                   value={currentStudent.student_id}
@@ -748,7 +746,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
+                <Label htmlFor="email">Email Address <span className="text-red-500">*</span></Label>
                 <Input
                   id="email"
                   type="email"
@@ -759,7 +757,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dob">Date of Birth *</Label>
+                <Label htmlFor="dob">Date of Birth <span className="text-red-500">*</span></Label>
                 <Input
                   id="dob"
                   type="date"
@@ -769,13 +767,13 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="gender">Gender *</Label>
+                <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
                 <Select value={currentStudent.gender} onValueChange={(value) => handleStudentInputChange("gender", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    {genderOptions.map((gender) => (
+                    {GENDER_OPTIONS.map((gender) => (
                       <SelectItem key={gender} value={gender}>{gender}</SelectItem>
                     ))}
                   </SelectContent>
@@ -783,7 +781,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
+                <Label htmlFor="phone">Phone Number <span className="text-red-500">*</span></Label>
                 <Input
                   id="phone"
                   type="tel"
@@ -797,7 +795,7 @@ export const SportStudentAddStep = ({ initialData, onComplete, onBack }: SportSt
             <div className="flex justify-end">
               <Button 
                 onClick={addStudentToTeam}
-                disabled={!selectedTeamId || !currentStudent.firstName || !currentStudent.lastName || !currentStudent.studentId || !currentStudent.email || !currentStudent.dateOfBirth || !currentStudent.gender || !currentStudent.phoneNumber}
+                disabled={!selectedTeamId || !currentStudent.fname || !currentStudent.lname || !currentStudent.student_id || !currentStudent.email || !currentStudent.dob || !currentStudent.gender || !currentStudent.phone}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Student to Team

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
 import { UserTypeSelection } from "@/components/registration/UserTypeSelection";
 import { EmailOtpStep } from "@/components/registration/EmailOtpStep";
 import { RegistrationSidebar } from "@/components/registration/RegistrationSidebar";
@@ -16,17 +17,86 @@ import { PanelLeft } from "lucide-react";
 export const NewRegisterPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [currentStep, setCurrentStep] = useState<"userType" | "email" | 1 | 2 | 3 | 4 | 5>("userType");
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [registrationData, setRegistrationData] = useState({
-    userType: "",
-    email: "",
-    password: "",
-    personalDetails: null,
-    documents: null,
-    parentMedical: null,
-    sports: null,
+  
+  // Initialize state from localStorage or defaults
+  const [currentStep, setCurrentStep] = useState<"userType" | "email" | 1 | 2 | 3 | 4 | 5>(() => {
+    const savedStep = localStorage.getItem('student_registration_step');
+    const savedEmail = localStorage.getItem('student_registration_email');
+    const savedData = localStorage.getItem('student_registration_data');
+    
+    console.log('🔄 State restoration:', { savedStep, savedEmail, savedData });
+    
+    // If we have saved data with an email, we should be past the userType step
+    if (savedData) {
+      try {
+        const data = JSON.parse(savedData);
+        if (data.email) {
+          // We have an email, so we're past userType
+          if (savedStep === "userType") {
+            return "email"; // Force to email step if step is userType but we have email
+          } else if (savedStep === "email") {
+            return "email";
+          } else if (savedStep) {
+            const stepNumber = parseInt(savedStep);
+            if (stepNumber >= 1 && stepNumber <= 5) {
+              return stepNumber as 1 | 2 | 3 | 4 | 5;
+            }
+          }
+          // Default to step 1 if we have email but no valid step
+          return 1;
+        }
+      } catch (error) {
+        console.error('Error parsing saved data:', error);
+      }
+    }
+    
+    // If we have a saved email but no data, go to email step
+    if (savedEmail) {
+      return "email";
+    }
+    
+    return "userType";
   });
+  
+  const [completedSteps, setCompletedSteps] = useState<number[]>(() => {
+    const saved = localStorage.getItem('student_registration_completed_steps');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [registrationData, setRegistrationData] = useState(() => {
+    const saved = localStorage.getItem('student_registration_data');
+    return saved ? JSON.parse(saved) : {
+      userType: "",
+      email: "",
+      password: "",
+      personalDetails: null,
+      documents: null,
+      parentMedical: null,
+      sports: null,
+    };
+  });
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('student_registration_step', currentStep.toString());
+  }, [currentStep]);
+
+  useEffect(() => {
+    localStorage.setItem('student_registration_completed_steps', JSON.stringify(completedSteps));
+  }, [completedSteps]);
+
+  useEffect(() => {
+    localStorage.setItem('student_registration_data', JSON.stringify(registrationData));
+  }, [registrationData]);
+
+  // Auto-load existing data if we have a saved email but no personal details
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('student_registration_email');
+    if (savedEmail && registrationData.email === savedEmail && !registrationData.personalDetails) {
+      console.log('🔄 Auto-loading existing data for:', savedEmail);
+      handleEmailComplete(savedEmail);
+    }
+  }, [registrationData.email, registrationData.personalDetails]);
 
   const handleUserTypeSelect = (type: "student" | "institution") => {
     if (type === "institution") {
@@ -39,13 +109,61 @@ export const NewRegisterPage = () => {
     setCurrentStep("email");
   };
 
-  const handleEmailComplete = (email: string) => {
+  const handleEmailComplete = async (email: string) => {
     setRegistrationData(prev => ({ ...prev, email }));
+    
+    // Save email to localStorage immediately
+    localStorage.setItem('student_registration_email', email);
+    
+    // Check for existing student data
+    try {
+      const response = await apiService.getStudentPrefillData(email);
+      if (response.data && (response.data as any).success && (response.data as any).data) {
+        const existingData = (response.data as any).data;
+        
+        // Pre-fill the registration data with existing information
+        setRegistrationData(prev => ({
+          ...prev,
+          personalDetails: {
+            firstName: existingData.fname || "",
+            middleName: existingData.mname || "",
+            lastName: existingData.lname || "",
+            email: existingData.email || email,
+            phoneNumber: existingData.phone || "",
+            address: existingData.address || "",
+            dateOfBirth: existingData.dob || "",
+            gender: existingData.gender || "",
+            studentId: existingData.student_id || "",
+            instituteName: existingData.institute_name || "",
+            instituteType: existingData.institute_type || "",
+          },
+          sports: {
+            selectedSports: existingData.sports || [],
+            experience: "",
+            achievements: "",
+            preferences: ""
+          }
+        }));
+        
+        toast({
+          title: "Existing Data Found!",
+          description: `Welcome back! We found your existing data from ${existingData.institute_name}. Please review and complete any missing information.`,
+        });
+      } else {
+        toast({
+          title: "Email Verified Successfully",
+          description: "Please complete your personal details.",
+        });
+      }
+    } catch (error) {
+      console.error('Error checking for existing data:', error);
+      toast({
+        title: "Email Verified Successfully",
+        description: "Please complete your personal details.",
+      });
+    }
+    
     setCurrentStep(1);
-    toast({
-      title: "Email Verified Successfully",
-      description: "Please complete your personal details.",
-    });
   };
 
   const handleStepComplete = (step: number, data: any) => {
@@ -76,7 +194,19 @@ export const NewRegisterPage = () => {
 
   const handleBack = (step: number) => {
     if (step === 1) {
-      setCurrentStep("email");
+      // Show confirmation dialog when going back from first step
+      const confirmed = window.confirm(
+        "Are you sure you want to go back? You will lose your current progress and be redirected to the login page."
+      );
+      
+      if (confirmed) {
+        // Clear localStorage and redirect to login
+        localStorage.removeItem('student_registration_step');
+        localStorage.removeItem('student_registration_email');
+        localStorage.removeItem('student_registration_data');
+        localStorage.removeItem('student_registration_completed_steps');
+        navigate("/login");
+      }
     } else {
       setCurrentStep((step - 1) as any);
     }
@@ -89,6 +219,12 @@ export const NewRegisterPage = () => {
   const handleFinalComplete = () => {
     // Save registration data to localStorage for demo
     localStorage.setItem('registrationData', JSON.stringify(registrationData));
+    
+    // Clear registration progress from localStorage
+    localStorage.removeItem('student_registration_step');
+    localStorage.removeItem('student_registration_email');
+    localStorage.removeItem('student_registration_data');
+    localStorage.removeItem('student_registration_completed_steps');
     
     toast({
       title: "Registration Complete! 🎉",

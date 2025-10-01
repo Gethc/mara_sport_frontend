@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { UserPlus, Plus, Trash2, Users, Trophy, Target, Users2 } from "lucide-react";
+import { GENDER_OPTIONS } from "@/lib/sportsData";
 
 interface EnhancedManualStudentAddStepProps {
   initialData?: any;
@@ -40,7 +41,6 @@ interface StudentGroup {
   students: Student[];
 }
 
-const genderOptions = ["Male", "Female", "Other"];
 
 // Sport data structure
 const sportData = {
@@ -581,7 +581,7 @@ export const EnhancedManualStudentAddStep = ({ initialData, onComplete, onBack }
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    {genderOptions.map((gender) => (
+                    {GENDER_OPTIONS.map((gender) => (
                       <SelectItem key={gender} value={gender}>{gender}</SelectItem>
                     ))}
                   </SelectContent>

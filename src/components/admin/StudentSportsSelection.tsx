@@ -44,7 +44,7 @@ export const StudentSportsSelection = ({
   const [currentSubCategory, setCurrentSubCategory] = useState("");
   const [currentAgeFrom, setCurrentAgeFrom] = useState("");
   const [currentAgeTo, setCurrentAgeTo] = useState("");
-  const [currentGender, setCurrentGender] = useState("Open");
+  const [currentGender, setCurrentGender] = useState("Male");
   const [errors, setErrors] = useState<string[]>([]);
 
   // Get available data based on selections
@@ -94,7 +94,7 @@ export const StudentSportsSelection = ({
     setCurrentSubCategory("");
     setCurrentAgeFrom("");
     setCurrentAgeTo("");
-    setCurrentGender("Open");
+    setCurrentGender("Male");
     setErrors([]);
   };
 

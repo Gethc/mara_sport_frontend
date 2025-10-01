@@ -39,9 +39,8 @@ export const ReviewPaymentStep = ({ registrationData, onComplete, onBack }: Revi
   const { toast } = useToast();
 
   const calculateTotal = () => {
-    const baseFee = 50;
     const sportsFee = registrationData.sports?.selectedSports?.length * 25 || 0;
-    return baseFee + sportsFee;
+    return sportsFee;
   };
 
   const handlePayment = async () => {
@@ -153,24 +152,12 @@ export const ReviewPaymentStep = ({ registrationData, onComplete, onBack }: Revi
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Student ID Image:</span>
-                  <Badge variant="secondary" className="text-xs">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Uploaded
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Age Proof Document:</span>
                   <Badge variant="secondary" className="text-xs">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Uploaded
                   </Badge>
                 </div>
-                {documents?.studentIdImage && (
-                  <div className="text-xs text-muted-foreground">
-                    Student ID: {documents.studentIdImage.name}
-                  </div>
-                )}
                 {documents?.ageProofDocument && (
                   <div className="text-xs text-muted-foreground">
                     Age Proof: {documents.ageProofDocument.name}
@@ -251,10 +238,6 @@ export const ReviewPaymentStep = ({ registrationData, onComplete, onBack }: Revi
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Base Registration Fee</span>
-                  <span>$50.00</span>
-                </div>
                 <div className="flex justify-between">
                   <span>Sports Fee ({sports?.selectedSports?.length || 0} sports)</span>
                   <span>${(sports?.selectedSports?.length || 0) * 25}.00</span>

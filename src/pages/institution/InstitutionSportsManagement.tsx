@@ -58,210 +58,33 @@ const InstitutionSportsManagement = () => {
   const [showAddStudent, setShowAddStudent] = useState(false);
 
   useEffect(() => {
-    loadDummyData();
+    fetchSports();
   }, []);
 
-  const loadDummyData = () => {
-    const dummySports: Sport[] = [
-      {
-        id: "1",
-        name: "Football",
-        type: "Team",
-        sportType: "Team",
-        categories: [
-          {
-            id: "cat1",
-            name: "Men's Football",
-            subCategories: [
-              { id: "sub1", name: "Under-18", gender: "Male", level: 1 },
-              { id: "sub2", name: "Under-21", gender: "Male", level: 2 },
-              { id: "sub3", name: "Senior", gender: "Male", level: 3 }
-            ]
-          },
-          {
-            id: "cat2",
-            name: "Women's Football",
-            subCategories: [
-              { id: "sub4", name: "Under-18", gender: "Female", level: 1 },
-              { id: "sub5", name: "Under-21", gender: "Female", level: 2 },
-              { id: "sub6", name: "Senior", gender: "Female", level: 3 }
-            ]
-          }
-        ],
-        enrolledStudents: [
-          {
-            id: "stu1",
-            studentId: "STU001",
-            firstName: "John",
-            lastName: "Doe",
-            fullName: "John Doe",
-            age: 19,
-            gender: "Male",
-            category: "Men's Football",
-            subCategory: "Under-21",
-            ageGroup: "18-20"
-          },
-          {
-            id: "stu2",
-            studentId: "STU002",
-            firstName: "Jane",
-            lastName: "Smith",
-            fullName: "Jane Smith",
-            age: 17,
-            gender: "Female",
-            category: "Women's Football",
-            subCategory: "Under-18",
-            ageGroup: "15-17"
-          }
-        ],
-        totalEnrolled: 2,
-        createdAt: "2024-01-15T10:00:00Z",
-        updatedAt: "2024-01-20T15:30:00Z"
-      },
-      {
-        id: "2",
-        name: "Basketball",
-        type: "Team",
-        sportType: "Team",
-        categories: [
-          {
-            id: "cat3",
-            name: "Men's Basketball",
-            subCategories: [
-              { id: "sub7", name: "Under-16", gender: "Male", level: 1 },
-              { id: "sub8", name: "Under-19", gender: "Male", level: 2 },
-              { id: "sub9", name: "Senior", gender: "Male", level: 3 }
-            ]
-          },
-          {
-            id: "cat4",
-            name: "Women's Basketball",
-            subCategories: [
-              { id: "sub10", name: "Under-16", gender: "Female", level: 1 },
-              { id: "sub11", name: "Under-19", gender: "Female", level: 2 },
-              { id: "sub12", name: "Senior", gender: "Female", level: 3 }
-            ]
-          }
-        ],
-        enrolledStudents: [
-          {
-            id: "stu3",
-            studentId: "STU003",
-            firstName: "Mike",
-            lastName: "Johnson",
-            fullName: "Mike Johnson",
-            age: 18,
-            gender: "Male",
-            category: "Men's Basketball",
-            subCategory: "Under-19",
-            ageGroup: "18-20"
-          }
-        ],
-        totalEnrolled: 1,
-        createdAt: "2024-01-10T09:00:00Z",
-        updatedAt: "2024-01-18T12:00:00Z"
-      },
-      {
-        id: "3",
-        name: "Tennis",
-        type: "Individual",
-        sportType: "Individual",
-        categories: [
-          {
-            id: "cat5",
-            name: "Singles",
-            subCategories: [
-              { id: "sub13", name: "Men's Singles", gender: "Male", level: 1 },
-              { id: "sub14", name: "Women's Singles", gender: "Female", level: 1 },
-              { id: "sub15", name: "Mixed Singles", gender: "Open", level: 1 }
-            ]
-          },
-          {
-            id: "cat6",
-            name: "Doubles",
-            subCategories: [
-              { id: "sub16", name: "Men's Doubles", gender: "Male", level: 2 },
-              { id: "sub17", name: "Women's Doubles", gender: "Female", level: 2 },
-              { id: "sub18", name: "Mixed Doubles", gender: "Open", level: 2 }
-            ]
-          }
-        ],
-        enrolledStudents: [
-          {
-            id: "stu4",
-            studentId: "STU004",
-            firstName: "Sarah",
-            lastName: "Wilson",
-            fullName: "Sarah Wilson",
-            age: 20,
-            gender: "Female",
-            category: "Singles",
-            subCategory: "Women's Singles",
-            ageGroup: "18-20"
-          },
-          {
-            id: "stu5",
-            studentId: "STU005",
-            firstName: "David",
-            lastName: "Brown",
-            fullName: "David Brown",
-            age: 22,
-            gender: "Male",
-            category: "Singles",
-            subCategory: "Men's Singles",
-            ageGroup: "21-23"
-          }
-        ],
-        totalEnrolled: 2,
-        createdAt: "2024-01-05T08:00:00Z",
-        updatedAt: "2024-01-22T14:00:00Z"
-      },
-      {
-        id: "4",
-        name: "Swimming",
-        type: "Individual",
-        sportType: "Individual",
-        categories: [
-          {
-            id: "cat7",
-            name: "Freestyle",
-            subCategories: [
-              { id: "sub19", name: "50m Freestyle", gender: "Open", level: 1 },
-              { id: "sub20", name: "100m Freestyle", gender: "Open", level: 2 },
-              { id: "sub21", name: "200m Freestyle", gender: "Open", level: 3 }
-            ]
-          },
-          {
-            id: "cat8",
-            name: "Backstroke",
-            subCategories: [
-              { id: "sub22", name: "50m Backstroke", gender: "Open", level: 1 },
-              { id: "sub23", name: "100m Backstroke", gender: "Open", level: 2 }
-            ]
-          }
-        ],
-        enrolledStudents: [],
-        totalEnrolled: 0,
-        createdAt: "2024-01-12T11:00:00Z",
-        updatedAt: "2024-01-12T11:00:00Z"
-      }
-    ];
-    
-    setSports(dummySports);
-  };
+  // Removed dummy data - using real data from API only
 
   const fetchSports = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Fetching sports from API...');
       const response = await apiService.getInstitutionSports();
-      setSports(response.data || []);
+      console.log('📥 Sports API Response:', response);
+      
+      if (response.data && response.data.data && response.data.data.sports) {
+        console.log('✅ Sports found:', response.data.data.sports);
+        setSports(response.data.data.sports);
+      } else {
+        console.log('⚠️ No sports in response - institution may not have enrolled in any sports yet');
+        setSports([]);
+      }
     } catch (error) {
-      console.error("Error fetching sports:", error);
+      console.error("❌ Error fetching sports:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch sports data",
+        description: "Failed to fetch sports data. Please check your connection and try again.",
         variant: "destructive",
       });
+      setSports([]);
     } finally {
       setLoading(false);
     }
@@ -283,10 +106,6 @@ const InstitutionSportsManagement = () => {
     setShowEdit(true);
   };
 
-  const handleAddStudentToSport = (sport: Sport) => {
-    setSelectedSport(sport);
-    setShowAddStudent(true);
-  };
 
   const getSportTypeColor = (type: string) => {
     switch (type) {
@@ -322,13 +141,22 @@ const InstitutionSportsManagement = () => {
             Manage and view sports with enrolled students
           </p>
         </div>
-        <Button 
-          onClick={() => setShowAddStudent(true)}
-          className="w-full sm:w-auto"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Student to Sport
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={fetchSports}
+            className="w-full sm:w-auto"
+          >
+            Refresh
+          </Button>
+          <Button 
+            onClick={() => setShowAddStudent(true)}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Student to Sport
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -449,17 +277,9 @@ const InstitutionSportsManagement = () => {
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     size="sm"
-                    className="flex-1"
-                    onClick={() => handleAddStudentToSport(sport)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Student
-                  </Button>
-                  <Button
-                    size="sm"
                     variant="outline"
                     onClick={() => handleViewDetails(sport)}
-                    className="flex-1 sm:flex-none"
+                    className="flex-1"
                   >
                     View Details
                   </Button>
@@ -471,7 +291,7 @@ const InstitutionSportsManagement = () => {
       </div>
 
       {/* No Results */}
-      {filteredSports.length === 0 && (
+      {filteredSports.length === 0 && !loading && (
         <Card>
           <CardContent className="text-center py-8">
             <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -479,7 +299,7 @@ const InstitutionSportsManagement = () => {
             <p className="text-muted-foreground">
               {searchTerm || sportTypeFilter !== "all"
                 ? "Try adjusting your filters to see more results."
-                : "No sports have been enrolled yet."}
+                : "No sports have been enrolled for your institution yet. Contact the admin to enroll in sports."}
             </p>
           </CardContent>
         </Card>
@@ -493,10 +313,6 @@ const InstitutionSportsManagement = () => {
           onEdit={() => {
             setShowDetails(false);
             setShowEdit(true);
-          }}
-          onAddStudent={() => {
-            setShowDetails(false);
-            setShowAddStudent(true);
           }}
         />
       )}

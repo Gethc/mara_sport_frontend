@@ -116,7 +116,7 @@ export const ParentMedicalStep = ({ initialData, onComplete, onBack }: ParentMed
             {formData.parentsAttending === "yes" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
                 <div className="space-y-2">
-                  <Label htmlFor="parentName">Parent Name *</Label>
+                  <Label htmlFor="parentName">Parent Name <span className="text-red-500">*</span></Label>
                   <Input
                     id="parentName"
                     placeholder="Full Name"
@@ -126,7 +126,7 @@ export const ParentMedicalStep = ({ initialData, onComplete, onBack }: ParentMed
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="parentRelation">Relation *</Label>
+                  <Label htmlFor="parentRelation">Relation <span className="text-red-500">*</span></Label>
                   <Input
                     id="parentRelation"
                     placeholder="e.g., Father, Mother, Guardian"
@@ -136,7 +136,7 @@ export const ParentMedicalStep = ({ initialData, onComplete, onBack }: ParentMed
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="parentPhone">Phone Number *</Label>
+                  <Label htmlFor="parentPhone">Phone Number <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
@@ -150,7 +150,7 @@ export const ParentMedicalStep = ({ initialData, onComplete, onBack }: ParentMed
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="parentEmail">Email Address *</Label>
+                  <Label htmlFor="parentEmail">Email Address <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
@@ -191,7 +191,7 @@ export const ParentMedicalStep = ({ initialData, onComplete, onBack }: ParentMed
 
             {formData.medicalFacilities === "yes" && (
               <div className="space-y-2">
-                <Label htmlFor="medicalDetails">Please specify medical facilities needed *</Label>
+                <Label htmlFor="medicalDetails">Please specify medical facilities needed <span className="text-red-500">*</span></Label>
                 <Textarea
                   id="medicalDetails"
                   placeholder="Describe the medical facilities or assistance you require..."
@@ -227,7 +227,7 @@ export const ParentMedicalStep = ({ initialData, onComplete, onBack }: ParentMed
 
             {formData.allergiesConditions === "yes" && (
               <div className="space-y-2">
-                <Label htmlFor="allergiesDetails">Please specify details *</Label>
+                <Label htmlFor="allergiesDetails">Please specify details <span className="text-red-500">*</span></Label>
                 <Textarea
                   id="allergiesDetails"
                   placeholder="Describe your allergies, health conditions, medications, or any other medical information..."

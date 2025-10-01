@@ -44,6 +44,9 @@ const defaultInstituteTypes = [
 
 export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: PersonalDetailsStepProps) => {
   const { toast } = useToast();
+  
+  // Debug logging
+  console.log("PersonalDetailsStep received initialData:", initialData);
   const [formData, setFormData] = useState({
     firstName: initialData?.firstName || "",
     middleName: initialData?.middleName || "",
@@ -71,20 +74,20 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
   useEffect(() => {
     if (initialData?.email && initialData.email !== loadedEmail) {
       setFormData({
-        firstName: "",
-        middleName: "",
-        lastName: "",
+        firstName: initialData.firstName || "",
+        middleName: initialData.middleName || "",
+        lastName: initialData.lastName || "",
         email: initialData.email,
-        dateOfBirth: "",
-        gender: "",
-        instituteName: "",
-        otherInstitute: "",
-        instituteType: "",
-        studentId: "",
-        phoneNumber: "",
-        address: "",
+        dateOfBirth: initialData.dateOfBirth || "",
+        gender: initialData.gender || "",
+        instituteName: initialData.instituteName || "",
+        otherInstitute: initialData.otherInstitute || "",
+        instituteType: initialData.instituteType || "",
+        studentId: initialData.studentId || "",
+        phoneNumber: initialData.phoneNumber || "",
+        address: initialData.address || "",
       });
-      setLoadedEmail(null); // Reset loaded email to allow loading new data
+      setLoadedEmail(initialData.email); // Set loaded email to prevent reloading
     }
   }, [initialData?.email, loadedEmail]);
 
@@ -287,7 +290,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
+              <Label htmlFor="firstName">First Name <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
@@ -316,7 +319,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="lastName">Last Name *</Label>
+            <Label htmlFor="lastName">Last Name <span className="text-red-500">*</span></Label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
@@ -330,7 +333,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address *</Label>
+            <Label htmlFor="email">Email Address <span className="text-red-500">*</span></Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
@@ -346,7 +349,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+              <Label htmlFor="dateOfBirth">Date of Birth <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
@@ -360,7 +363,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
             </div>
             
             <div className="space-y-2">
-              <Label>Gender *</Label>
+              <Label>Gender <span className="text-red-500">*</span></Label>
               <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Gender" />
@@ -376,7 +379,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Institute Type *</Label>
+              <Label>Institute Type <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Select 
@@ -399,7 +402,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
             </div>
 
             <div className="space-y-2">
-              <Label>Institution *</Label>
+              <Label>Institution <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <School className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Select 
@@ -432,7 +435,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
 
           {formData.instituteName === "Other" && (
             <div className="space-y-2">
-              <Label htmlFor="otherInstitute">Institution Name *</Label>
+              <Label htmlFor="otherInstitute">Institution Name <span className="text-red-500">*</span></Label>
               <Input
                 id="otherInstitute"
                 placeholder="Enter Institution Name"
@@ -443,7 +446,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="studentId">Student ID *</Label>
+            <Label htmlFor="studentId">Student ID <span className="text-red-500">*</span></Label>
             <div className="relative">
               <IdCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
@@ -457,7 +460,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Phone Number *</Label>
+            <Label htmlFor="phoneNumber">Phone Number <span className="text-red-500">*</span></Label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
@@ -477,7 +480,7 @@ export const PersonalDetailsStep = ({ initialData, onComplete, onBack }: Persona
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Address *</Label>
+            <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
             <div className="relative">
               <MapPin className="absolute left-3 top-3 text-muted-foreground h-4 w-4" />
               <Textarea

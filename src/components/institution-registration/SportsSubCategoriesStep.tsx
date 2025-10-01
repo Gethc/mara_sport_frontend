@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Trophy, Plus, Trash2, Loader2 } from "lucide-react";
 import { apiService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { SPORTS_GENDER_OPTIONS } from "@/lib/sportsData";
 
 interface SportsSubCategoriesStepProps {
   initialData?: any;
@@ -15,9 +16,8 @@ interface SportsSubCategoriesStepProps {
   onBack: () => void;
 }
 
-// Constants for age categories and gender options
+// Constants for age categories and sport types
 const AGE_CATEGORIES = ["U9", "U11", "U13", "U15", "U17", "U19"];
-const GENDER_OPTIONS = ["Open", "Male", "Female", "Mixed"];
 const SPORT_TYPES = ["Individual", "Team"];
 
 // Interface for selected sport
@@ -237,7 +237,7 @@ export const SportsSubCategoriesStep = ({ initialData, onComplete, onBack }: Spo
     setCurrentSubCategory("");
     setCurrentAgeFrom("");
     setCurrentAgeTo("");
-    setCurrentGender("Open");
+    setCurrentGender("Male");
     setErrors([]);
     
     toast({
@@ -413,7 +413,7 @@ export const SportsSubCategoriesStep = ({ initialData, onComplete, onBack }: Spo
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
-                {GENDER_OPTIONS.map((gender) => (
+                {SPORTS_GENDER_OPTIONS.map((gender) => (
                   <SelectItem key={gender} value={gender}>{gender}</SelectItem>
                 ))}
               </SelectContent>

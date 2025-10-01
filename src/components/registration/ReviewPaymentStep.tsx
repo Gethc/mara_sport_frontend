@@ -48,21 +48,78 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
   const { toast } = useToast();
 
   const [feeCalculation, setFeeCalculation] = useState<any>(null);
+  const [parentFees, setParentFees] = useState<{[key: number]: number}>({});
+  const [isLoadingParentFees, setIsLoadingParentFees] = useState(false);
+
+  // Helper function to calculate student's age from date of birth
+  const calculateStudentAge = (dateOfBirth: string): number => {
+    if (!dateOfBirth) return 13; // Default to 13+ if no DOB
+    
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
+
+  // Helper function to determine age category (0 = under 13, 1 = 13+)
+  const getAgeCategory = (dateOfBirth: string): number => {
+    const age = calculateStudentAge(dateOfBirth);
+    return age < 13 ? 0 : 1;
+  };
+
+  // Calculate parent fees from parent_passes table
+  const calculateParentFees = async () => {
+    const parentCount = registrationData.parentMedical?.parents?.length || 0;
+    if (parentCount === 0) return;
+
+    setIsLoadingParentFees(true);
+    try {
+      const studentDateOfBirth = registrationData.personalDetails?.dateOfBirth || "";
+      const ageCategory = getAgeCategory(studentDateOfBirth);
+      
+      // Get current pricing for the student's age category
+      const response = await apiService.getCurrentPricing(ageCategory);
+      
+      if (response.data && response.data.success) {
+        const feePerParent = response.data.data.current_amount;
+        const totalParentFee = parentCount * feePerParent;
+        setParentFees({ feePerParent, totalParentFee, passType: response.data.data.pass_type });
+      } else {
+        throw new Error("Failed to get current pricing");
+      }
+    } catch (error) {
+      console.error("Error calculating parent fees:", error);
+      // Fallback pricing
+      const studentDateOfBirth = registrationData.personalDetails?.dateOfBirth || "";
+      const ageCategory = getAgeCategory(studentDateOfBirth);
+      const fallbackFeePerParent = ageCategory === 0 ? 500 : 750; // Under 13: 500, 13+: 750
+      const totalParentFee = parentCount * fallbackFeePerParent;
+      setParentFees({ feePerParent: fallbackFeePerParent, totalParentFee, passType: "Standard" });
+    } finally {
+      setIsLoadingParentFees(false);
+    }
+  };
+
+  // Calculate parent fees when component mounts or parent data changes
+  useEffect(() => {
+    calculateParentFees();
+  }, [registrationData.parentMedical?.parents?.length, registrationData.personalDetails?.dateOfBirth]);
 
   const calculateTotal = () => {
     if (feeCalculation) {
       return feeCalculation.breakdown.total;
     }
-    // Fallback calculation
-    const baseFee = 1000; // KES
+    // Calculate with dynamic parent pricing
     const sportsFee = (registrationData.sports?.selectedSports?.length || 0) * 1000; // KES
-    const parentCount = registrationData.parentMedical?.parents?.length || 0;
-    let parentFee = 0;
-    if (parentCount === 1) parentFee = 1000;
-    else if (parentCount === 2) parentFee = 1500;
-    else if (parentCount >= 3) parentFee = 2000;
+    const parentFee = parentFees.totalParentFee || 0;
     
-    return baseFee + sportsFee + parentFee;
+    return sportsFee + parentFee;
   };
 
   const handleProceedToPayment = () => {
@@ -170,29 +227,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
 
   const { personalDetails, documents, parentMedical, sports } = registrationData;
 
-  // Calculate fees when component loads
-  useEffect(() => {
-    calculateFees();
-  }, []);
-
-  const calculateFees = async () => {
-    try {
-      const calculationData = {
-        selectedSports: sports?.selectedSports || [],
-        parentCount: parentMedical?.parents?.length || 0,
-        baseFee: 1000 // Base registration fee in KES
-      };
-
-      const response = await apiService.calculateTotalFees(calculationData);
-      
-      if (response.data && (response.data as any).success) {
-        setFeeCalculation((response.data as any).data);
-      }
-    } catch (error) {
-      console.error("Error calculating fees:", error);
-      // Don't show error toast for fee calculation as it's not critical
-    }
-  };
+  // Fee calculation is now done locally without API calls
 
   // Sponsorship Form View
   if (showSponsorshipForm) {
@@ -220,7 +255,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="requestedAmount">Requested Amount *</Label>
+                <Label htmlFor="requestedAmount">Requested Amount <span className="text-red-500">*</span></Label>
                 <Input
                   id="requestedAmount"
                   type="number"
@@ -231,7 +266,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
               </div>
 
               <div className="space-y-2">
-                <Label>Sponsorship Type *</Label>
+                <Label>Sponsorship Type <span className="text-red-500">*</span></Label>
                 <RadioGroup 
                   value={sponsorshipData.sponsorshipType} 
                   onValueChange={(value) => setSponsorshipData(prev => ({ ...prev, sponsorshipType: value }))}
@@ -249,7 +284,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="reason">Reason for Sponsorship *</Label>
+                <Label htmlFor="reason">Reason for Sponsorship <span className="text-red-500">*</span></Label>
                 <Textarea
                   id="reason"
                   placeholder="Please explain why you need sponsorship and your current financial situation..."
@@ -298,10 +333,6 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
                 {feeCalculation ? (
                   <>
                     <div className="flex justify-between">
-                      <span>Base Registration Fee</span>
-                      <span>KES {feeCalculation.breakdown.base_fee.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span>Sports Fee ({sports?.selectedSports?.length || 0} sports)</span>
                       <span>KES {feeCalculation.breakdown.sports_fees.reduce((sum: number, sport: any) => sum + sport.fee, 0).toLocaleString()}</span>
                     </div>
@@ -320,17 +351,19 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
                 ) : (
                   <>
                     <div className="flex justify-between">
-                      <span>Base Registration Fee</span>
-                      <span>KES 1,000</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span>Sports Fee ({sports?.selectedSports?.length || 0} sports)</span>
                       <span>KES {((sports?.selectedSports?.length || 0) * 1000).toLocaleString()}</span>
                     </div>
                     {parentMedical?.parents?.length > 0 && (
                       <div className="flex justify-between">
                         <span>Parent Fee ({parentMedical?.parents?.length} parents)</span>
-                        <span>KES {parentMedical?.parents?.length === 1 ? '1,000' : parentMedical?.parents?.length === 2 ? '1,500' : '2,000'}</span>
+                        <span>
+                          {isLoadingParentFees ? (
+                            "Loading..."
+                          ) : (
+                            `KES ${(parentFees.totalParentFee || 0).toLocaleString()}${parentFees.passType ? ` (${parentFees.passType})` : ''}`
+                          )}
+                        </span>
                       </div>
                     )}
                     <Separator />
@@ -586,13 +619,6 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
               </div>
               <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
                 <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                  <span className="text-muted-foreground">Student ID Image:</span>
-                  <Badge variant="secondary" className="text-xs">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Uploaded
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between border-b border-border/50 pb-1">
                   <span className="text-muted-foreground">Age Proof Document:</span>
                   <Badge variant="secondary" className="text-xs">
                     <CheckCircle className="h-3 w-3 mr-1" />
@@ -616,10 +642,6 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
                 {feeCalculation ? (
                   <>
                     <div className="flex justify-between">
-                      <span>Base Registration Fee</span>
-                      <span>KES {feeCalculation.breakdown.base_fee.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span>Sports Fee ({sports?.selectedSports?.length || 0} sports)</span>
                       <span>KES {feeCalculation.breakdown.sports_fees.reduce((sum: number, sport: any) => sum + sport.fee, 0).toLocaleString()}</span>
                     </div>
@@ -638,17 +660,19 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
                 ) : (
                   <>
                     <div className="flex justify-between">
-                      <span>Base Registration Fee</span>
-                      <span>KES 1,000</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span>Sports Fee ({sports?.selectedSports?.length || 0} sports)</span>
                       <span>KES {((sports?.selectedSports?.length || 0) * 1000).toLocaleString()}</span>
                     </div>
                     {parentMedical?.parents?.length > 0 && (
                       <div className="flex justify-between">
                         <span>Parent Fee ({parentMedical?.parents?.length} parents)</span>
-                        <span>KES {parentMedical?.parents?.length === 1 ? '1,000' : parentMedical?.parents?.length === 2 ? '1,500' : '2,000'}</span>
+                        <span>
+                          {isLoadingParentFees ? (
+                            "Loading..."
+                          ) : (
+                            `KES ${(parentFees.totalParentFee || 0).toLocaleString()}${parentFees.passType ? ` (${parentFees.passType})` : ''}`
+                          )}
+                        </span>
                       </div>
                     )}
                     <Separator />

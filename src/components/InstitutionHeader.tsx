@@ -14,8 +14,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export function InstitutionHeader() {
-  const { logout } = useAuth();
+  const { student, logout } = useAuth();
   const navigate = useNavigate();
+
+  const handleProfile = () => {
+    navigate('/institution/profile');
+  };
 
   const handleLogout = async () => {
     try {
@@ -44,21 +48,25 @@ export function InstitutionHeader() {
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="/placeholder-avatar.jpg" alt="Institution" />
-                  <AvatarFallback>IN</AvatarFallback>
+                  <AvatarFallback>
+                    {student?.fullName?.charAt(0) || student?.email?.charAt(0) || 'I'}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 z-50 bg-background border shadow-medium" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Tech University</p>
+                  <p className="text-sm font-medium leading-none">
+                    {student?.fullName || student?.instituteName || 'Institution'}
+                  </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    admin@techuni.edu
+                    {student?.email || 'institution@example.com'}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleProfile}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>

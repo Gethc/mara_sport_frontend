@@ -331,21 +331,54 @@ export const InstitutionDetailsStep = ({
       }
     }
     
-    // Email verification requirements - make them optional for now
-    // if (!verificationStatus.institutionEmailVerified) {
-    //   newErrors.push("Institution email must be verified");
-    // }
-    // if (!verificationStatus.contactPersonEmailVerified) {
-    //   newErrors.push("Contact person email must be verified");
-    // }
+    // Email verification requirements - now mandatory
+    if (!verificationStatus.institutionEmailVerified) {
+      newErrors.push("Institution email must be verified");
+    }
+    if (!verificationStatus.contactPersonEmailVerified) {
+      newErrors.push("Contact person email must be verified");
+    }
 
     setErrors(newErrors);
     return newErrors.length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      onComplete(formData);
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+    
+    // Validate email uniqueness before proceeding
+    try {
+      toast({
+        title: "Validating Email",
+        description: "Checking if email is available for registration...",
+      });
+      
+      const response = await apiService.validateRegistrationEmail(formData.institutionEmail);
+      
+      if (response.data?.success) {
+        toast({
+          title: "Email Available",
+          description: "Email validated successfully. Proceeding with registration.",
+        });
+        onComplete(formData);
+      } else {
+        throw new Error(response.data?.message || "Email validation failed");
+      }
+    } catch (error: any) {
+      console.error('Email validation failed:', error);
+      
+      let errorMessage = "Failed to validate email. Please try again.";
+      
+      // Check if it's an email conflict error
+      if (error.response?.status === 409 || error.message?.includes('already registered')) {
+        errorMessage = `Email '${formData.institutionEmail}' is already registered. Please use a different email address or contact support if you believe this is an error.`;
+      }
+      
+      toast({
+        title: "Registration Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
@@ -374,7 +407,7 @@ export const InstitutionDetailsStep = ({
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="institutionType">Institute Type *</Label>
+              <Label htmlFor="institutionType">Institute Type <span className="text-red-500">*</span></Label>
               <Select 
                 value={formData.institutionType} 
                 onValueChange={(value) => {
@@ -396,7 +429,7 @@ export const InstitutionDetailsStep = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="institutionName">Institute Name *</Label>
+              <Label htmlFor="institutionName">Institute Name <span className="text-red-500">*</span></Label>
               {formData.institutionType === "Other" ? (
                 <Input
                   id="institutionName"
@@ -424,7 +457,7 @@ export const InstitutionDetailsStep = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="institutionEmail">Institution Email *</Label>
+            <Label htmlFor="institutionEmail">Institution Email <span className="text-red-500">*</span></Label>
             <div className="flex gap-2">
               <Input
                 id="institutionEmail"
@@ -480,7 +513,7 @@ export const InstitutionDetailsStep = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Phone Number *</Label>
+            <Label htmlFor="phoneNumber">Phone Number <span className="text-red-500">*</span></Label>
             <Input
               id="phoneNumber"
               type="tel"
@@ -513,7 +546,7 @@ export const InstitutionDetailsStep = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="principalName">Principal Name *</Label>
+              <Label htmlFor="principalName">Principal Name <span className="text-red-500">*</span></Label>
               <Input
                 id="principalName"
                 value={formData.principalName}
@@ -523,7 +556,7 @@ export const InstitutionDetailsStep = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="principalContact">Principal Contact Number *</Label>
+              <Label htmlFor="principalContact">Principal Contact Number <span className="text-red-500">*</span></Label>
               <Input
                 id="principalContact"
                 type="tel"
@@ -556,7 +589,7 @@ export const InstitutionDetailsStep = ({
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="contactPersonName">Name *</Label>
+              <Label htmlFor="contactPersonName">Name <span className="text-red-500">*</span></Label>
               <Input
                 id="contactPersonName"
                 value={formData.contactPersonName}
@@ -566,7 +599,7 @@ export const InstitutionDetailsStep = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="contactPersonDesignation">Designation *</Label>
+              <Label htmlFor="contactPersonDesignation">Designation <span className="text-red-500">*</span></Label>
               <Input
                 id="contactPersonDesignation"
                 value={formData.contactPersonDesignation}
@@ -577,7 +610,7 @@ export const InstitutionDetailsStep = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contactPersonPhone">Contact Number *</Label>
+            <Label htmlFor="contactPersonPhone">Contact Number <span className="text-red-500">*</span></Label>
               <Input
                 id="contactPersonPhone"
                 type="tel"
@@ -597,7 +630,7 @@ export const InstitutionDetailsStep = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contactPersonEmail">Email *</Label>
+            <Label htmlFor="contactPersonEmail">Email <span className="text-red-500">*</span></Label>
             
             {/* Same email checkbox */}
             <div className="flex items-center space-x-2">

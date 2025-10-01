@@ -33,92 +33,28 @@ const NotificationsPage = () => {
   const [filterType, setFilterType] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 1,
-      title: "Registration Deadline Extended",
-      message: "Good news! The registration deadline for Basketball tournament has been extended to February 25th, 2024. Don't miss this opportunity to register your team.",
-      type: 'info',
-      category: 'registration',
-      isRead: false,
-      timestamp: '2024-02-10 09:30 AM',
-      priority: 'medium',
-      actionRequired: true
-    },
-    {
-      id: 2,
-      title: "Payment Confirmation - Football",
-      message: "Your payment of ₹150 for Football Men's Team registration has been successfully processed. Transaction ID: TXN001234567",
-      type: 'success',
-      category: 'payment',
-      isRead: true,
-      timestamp: '2024-02-09 03:45 PM',
-      priority: 'low'
-    },
-    {
-      id: 3,
-      title: "Medical Certificate Required",
-      message: "Important: All participants must submit medical certificates before February 20th. Please upload your certificate in the Medical Information section.",
-      type: 'warning',
-      category: 'general',
-      isRead: false,
-      timestamp: '2024-02-08 11:00 AM',
-      priority: 'high',
-      actionRequired: true
-    },
-    {
-      id: 4,
-      title: "Football Match Schedule Released",
-      message: "The complete schedule for Football tournament has been released. Your first match is on March 15th at 10:00 AM. Check the events section for details.",
-      type: 'event',
-      category: 'event',
-      isRead: false,
-      timestamp: '2024-02-07 02:20 PM',
-      priority: 'medium'
-    },
-    {
-      id: 5,
-      title: "New Sports Category Added",
-      message: "We've added Badminton to our sports lineup! Registration is now open with an entry fee of ₹60. Register before March 1st.",
-      type: 'announcement',
-      category: 'registration',
-      isRead: true,
-      timestamp: '2024-02-05 10:15 AM',
-      priority: 'low'
-    },
-    {
-      id: 6,
-      title: "Consent Forms Pending",
-      message: "You have 3 pending consent forms that need to be signed. Please complete them in the Consent & Declarations section to ensure your participation.",
-      type: 'warning',
-      category: 'general',
-      isRead: false,
-      timestamp: '2024-02-04 04:30 PM',
-      priority: 'high',
-      actionRequired: true
-    },
-    {
-      id: 7,
-      title: "Tennis Tournament Updates",
-      message: "The tennis tournament format has been updated to include mixed doubles. Check the updated rules and regulations in the sports registration section.",
-      type: 'info',
-      category: 'event',
-      isRead: true,
-      timestamp: '2024-02-03 01:15 PM',
-      priority: 'medium'
-    },
-    {
-      id: 8,
-      title: "Emergency Contact Update Required",
-      message: "Please verify and update your emergency contact information in the Guardian Information section. This is crucial for your safety during events.",
-      type: 'warning',
-      category: 'emergency',
-      isRead: false,
-      timestamp: '2024-02-02 09:45 AM',
-      priority: 'high',
-      actionRequired: true
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch notifications from API (placeholder - no API endpoint yet)
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      // TODO: Implement notification API endpoint
+      // const response = await apiService.getNotifications();
+      // setNotifications(response.data);
+      setNotifications([]); // Empty for now
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   const markAsRead = (id: number) => {
     setNotifications(prev => 
@@ -306,7 +242,17 @@ const NotificationsPage = () => {
 
       {/* Notifications List */}
       <div className="space-y-4">
-        {filteredNotifications.length === 0 ? (
+        {loading ? (
+          <Card className="shadow-soft">
+            <CardContent className="py-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <h3 className="font-semibold text-lg mb-2">Loading notifications...</h3>
+              <p className="text-muted-foreground">
+                Please wait while we fetch your notifications
+              </p>
+            </CardContent>
+          </Card>
+        ) : filteredNotifications.length === 0 ? (
           <Card className="shadow-soft">
             <CardContent className="py-12 text-center">
               <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

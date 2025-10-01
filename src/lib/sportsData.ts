@@ -5,7 +5,12 @@ export const AGE_CATEGORIES = [
 ];
 
 export const GENDER_OPTIONS = [
-  "Male", "Female", "other"
+  "Male", "Female"
+];
+
+// Sports-specific gender options (same as general options)
+export const SPORTS_GENDER_OPTIONS = [
+  "Male", "Female"
 ];
 
 export const SPORT_TYPES = [

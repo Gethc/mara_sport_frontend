@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,13 +21,13 @@ interface Parent {
 interface ParentMedicalStepProps {
   initialData?: any;
   email?: string;
+  registrationData?: any; // Add registration data to access student's date of birth
   onComplete: (data: any) => void;
   onBack: () => void;
 }
 
-export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: ParentMedicalStepProps) => {
+export const ParentMedicalStep = ({ initialData, email, registrationData, onComplete, onBack }: ParentMedicalStepProps) => {
   const { toast } = useToast();
-  const PARENT_FEE = 100; // Fee per parent
   
   const [formData, setFormData] = useState({
     parentsAttending: initialData?.parentsAttending || "",
@@ -38,12 +38,26 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
     allergiesDetails: initialData?.allergiesDetails || "",
   });
 
+
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors([]);
+  };
+
+  // Validation functions
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    // Kenya phone number: +254 followed by 9 digits
+    const phoneRegex = /^\+254\d{9}$/;
+    return phoneRegex.test(phone);
   };
 
   const handleParentChange = (index: number, field: keyof Parent, value: string) => {
@@ -81,12 +95,27 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
         formData.parents.forEach((parent, index) => {
           if (!parent.name) newErrors.push(`Parent ${index + 1}: Name is required`);
           if (!parent.relation) newErrors.push(`Parent ${index + 1}: Relation is required`);
-          if (!parent.phone) newErrors.push(`Parent ${index + 1}: Phone is required`);
-          if (!parent.age || parent.age === 0) newErrors.push(`Parent ${index + 1}: Age is required`);
-          if (parent.age && (parent.age < 18 || parent.age > 100)) {
-            newErrors.push(`Parent ${index + 1}: Age must be between 18 and 100`);
+          
+          // Phone validation
+          if (!parent.phone) {
+            newErrors.push(`Parent ${index + 1}: Phone number is required`);
+          } else if (!validatePhone(parent.phone)) {
+            newErrors.push(`Parent ${index + 1}: Phone number must start with +254 followed by 9 digits (e.g., +254712345678)`);
           }
-          if (!parent.email) newErrors.push(`Parent ${index + 1}: Email is required`);
+          
+          // Age validation - removed restrictions
+          if (!parent.age || parent.age === 0) {
+            newErrors.push(`Parent ${index + 1}: Age is required`);
+          } else if (parent.age < 1) {
+            newErrors.push(`Parent ${index + 1}: Age must be a positive number`);
+          }
+          
+          // Email validation
+          if (!parent.email) {
+            newErrors.push(`Parent ${index + 1}: Email address is required`);
+          } else if (!validateEmail(parent.email)) {
+            newErrors.push(`Parent ${index + 1}: Please enter a valid email address`);
+          }
         });
       }
     }
@@ -113,19 +142,16 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
     
     setIsLoading(true);
     try {
-      const parentFees = formData.parentsAttending === "yes" ? formData.parents.length * PARENT_FEE : 0;
-      
       // Save parent and medical information to database
       const parentMedicalData = {
         email: email || initialData?.email,
         ...formData,
-        parentFees,
         parentCount: formData.parentsAttending === "yes" ? formData.parents.length : 0
       };
       
       const response = await apiService.saveParentMedical(parentMedicalData);
       
-      if (response.data && response.data.success) {
+      if (response.data && (response.data as any).success) {
         // Save registration progress
         const progressData = {
           email: email || initialData?.email,
@@ -144,11 +170,10 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
         
         onComplete({
           ...formData,
-          parentFees,
           parentCount: formData.parentsAttending === "yes" ? formData.parents.length : 0
         });
       } else {
-        throw new Error((response.data && response.data.message) || "Failed to save parent and medical information");
+        throw new Error((response.data && (response.data as any).message) || "Failed to save parent and medical information");
       }
     } catch (error) {
       console.error("Error saving parent and medical information:", error);
@@ -235,7 +260,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor={`parent-name-${index}`}>Full Name *</Label>
+                        <Label htmlFor={`parent-name-${index}`}>Full Name <span className="text-red-500">*</span></Label>
                         <Input
                           id={`parent-name-${index}`}
                           placeholder="Full Name"
@@ -245,7 +270,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor={`parent-relation-${index}`}>Relation *</Label>
+                        <Label htmlFor={`parent-relation-${index}`}>Relation <span className="text-red-500">*</span></Label>
                         <Input
                           id={`parent-relation-${index}`}
                           placeholder="e.g., Father, Mother, Guardian"
@@ -255,34 +280,34 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor={`parent-phone-${index}`}>Phone Number *</Label>
+                        <Label htmlFor={`parent-phone-${index}`}>Phone Number <span className="text-red-500">*</span></Label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                           <Input
                             id={`parent-phone-${index}`}
-                            placeholder="Phone Number"
+                            placeholder="+254712345678"
                             value={parent.phone}
                             onChange={(e) => handleParentChange(index, "phone", e.target.value)}
                             className="pl-10"
                           />
                         </div>
+                        <p className="text-xs text-muted-foreground">Enter phone number starting with +254 followed by 9 digits</p>
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor={`parent-age-${index}`}>Age *</Label>
+                        <Label htmlFor={`parent-age-${index}`}>Age <span className="text-red-500">*</span></Label>
                         <Input
                           id={`parent-age-${index}`}
                           type="number"
                           placeholder="Age"
                           value={parent.age || ""}
                           onChange={(e) => handleParentChange(index, "age", e.target.value)}
-                          min="18"
-                          max="100"
+                          min="1"
                         />
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor={`parent-email-${index}`}>Email Address *</Label>
+                        <Label htmlFor={`parent-email-${index}`}>Email Address <span className="text-red-500">*</span></Label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                           <Input
@@ -336,7 +361,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
 
             {formData.medicalFacilities === "yes" && (
               <div className="space-y-2">
-                <Label htmlFor="medicalDetails">Please specify medical facilities needed *</Label>
+                <Label htmlFor="medicalDetails">Please specify medical facilities needed <span className="text-red-500">*</span></Label>
                 <Textarea
                   id="medicalDetails"
                   placeholder="Describe the medical facilities or assistance you require..."
@@ -372,7 +397,7 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
 
             {formData.allergiesConditions === "yes" && (
               <div className="space-y-2">
-                <Label htmlFor="allergiesDetails">Please specify details *</Label>
+                <Label htmlFor="allergiesDetails">Please specify details <span className="text-red-500">*</span></Label>
                 <Textarea
                   id="allergiesDetails"
                   placeholder="Describe your allergies, health conditions, medications, or any other medical information..."
@@ -384,26 +409,6 @@ export const ParentMedicalStep = ({ initialData, email, onComplete, onBack }: Pa
             )}
           </div>
 
-          {/* Parent Fee Information */}
-          {formData.parentsAttending === "yes" && formData.parents.length > 0 && (
-            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-              <h4 className="font-medium text-primary mb-2">Parent Fee Information</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Number of Parents:</span>
-                  <span className="font-medium">{formData.parents.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Fee per Parent:</span>
-                  <span className="font-medium">₹{PARENT_FEE}</span>
-                </div>
-                <div className="flex justify-between text-primary font-semibold border-t pt-1">
-                  <span>Total Parent Fees:</span>
-                  <span>₹{formData.parents.length * PARENT_FEE}</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           <Alert>
             <Heart className="h-4 w-4" />

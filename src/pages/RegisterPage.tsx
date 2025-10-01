@@ -418,9 +418,8 @@ const RegisterPage = () => {
   };
 
   const calculateFees = () => {
-    const baseFee = 50;
     const sportFee = formData.selectedSports.length * 25;
-    return baseFee + sportFee;
+    return sportFee;
   };
 
   const handleSubmit = async () => {
@@ -495,7 +494,7 @@ const RegisterPage = () => {
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <Label className="text-base font-semibold">First Name *</Label>
+                <Label className="text-base font-semibold">First Name <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Input
@@ -519,7 +518,7 @@ const RegisterPage = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Last Name *</Label>
+                <Label className="text-base font-semibold">Last Name <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Input
@@ -533,7 +532,7 @@ const RegisterPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-base font-semibold">Email Address *</Label>
+              <Label className="text-base font-semibold">Email Address <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                 <Input
@@ -548,7 +547,7 @@ const RegisterPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Date of Birth *</Label>
+                <Label className="text-base font-semibold">Date of Birth <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Input
@@ -562,7 +561,7 @@ const RegisterPage = () => {
               </div>
               
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Gender *</Label>
+                <Label className="text-base font-semibold">Gender <span className="text-red-500">*</span></Label>
                 <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
                   <SelectTrigger className="h-12 text-base">
                     <SelectValue placeholder="Select your gender" />
@@ -576,7 +575,7 @@ const RegisterPage = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Student ID *</Label>
+                <Label className="text-base font-semibold">Student ID <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <IdCard className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Input
@@ -591,7 +590,7 @@ const RegisterPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Institution *</Label>
+                <Label className="text-base font-semibold">Institution <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <School className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Select value={formData.instituteName} onValueChange={(value) => handleInputChange("instituteName", value)}>
@@ -610,7 +609,7 @@ const RegisterPage = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Phone Number *</Label>
+                <Label className="text-base font-semibold">Phone Number <span className="text-red-500">*</span></Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
@@ -645,7 +644,7 @@ const RegisterPage = () => {
 
             {formData.instituteName === "Other" && (
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Institution Name *</Label>
+                <Label className="text-base font-semibold">Institution Name <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="Enter your institution name"
                   value={formData.otherInstitute}
@@ -688,7 +687,7 @@ const RegisterPage = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Current Class/Year *</Label>
+                <Label>Current Class/Year <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="e.g., 12th Grade, 2nd Year"
                   value={formData.currentClass}
@@ -696,7 +695,7 @@ const RegisterPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Academic Year *</Label>
+                <Label>Academic Year <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="e.g., 2024-25"
                   value={formData.academicYear}
@@ -770,7 +769,7 @@ const RegisterPage = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Parent/Guardian Name *</Label>
+                <Label>Parent/Guardian Name <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="Full Name"
                   value={formData.parentGuardianName}
@@ -808,7 +807,7 @@ const RegisterPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Phone Number *</Label>
+                <Label>Phone Number <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="+91 9876543210"
                   value={formData.parentPhone}
@@ -816,7 +815,7 @@ const RegisterPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Email Address *</Label>
+                <Label>Email Address <span className="text-red-500">*</span></Label>
                 <Input
                   type="email"
                   placeholder="parent@email.com"
@@ -832,7 +831,7 @@ const RegisterPage = () => {
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Street Address *</Label>
+              <Label>Street Address <span className="text-red-500">*</span></Label>
               <Textarea
                 placeholder="Complete street address"
                 value={formData.streetAddress}
@@ -843,7 +842,7 @@ const RegisterPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>City *</Label>
+                <Label>City <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="New Delhi"
                   value={formData.city}
@@ -851,7 +850,7 @@ const RegisterPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>State *</Label>
+                <Label>State <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="Delhi"
                   value={formData.state}
@@ -859,7 +858,7 @@ const RegisterPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Postal Code *</Label>
+                <Label>Postal Code <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="110001"
                   value={formData.postalCode}
@@ -870,7 +869,7 @@ const RegisterPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Country *</Label>
+                <Label>Country <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="India"
                   value={formData.country}
@@ -943,7 +942,7 @@ const RegisterPage = () => {
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Medical Question 1 *</Label>
+              <Label>Medical Question 1 <span className="text-red-500">*</span></Label>
               <Textarea
                 placeholder="Do you have any existing medical conditions?"
                 value={formData.medicalQuestion1}
@@ -953,7 +952,7 @@ const RegisterPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Medical Question 2 *</Label>
+              <Label>Medical Question 2 <span className="text-red-500">*</span></Label>
               <Textarea
                 placeholder="Are you currently taking any medications?"
                 value={formData.medicalQuestion2}
@@ -990,7 +989,7 @@ const RegisterPage = () => {
         return (
           <div className="space-y-6">
             <div className="space-y-4">
-              <Label className="text-base font-semibold">Participation Type *</Label>
+              <Label className="text-base font-semibold">Participation Type <span className="text-red-500">*</span></Label>
               <div className="grid grid-cols-2 gap-4">
                 <div 
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
