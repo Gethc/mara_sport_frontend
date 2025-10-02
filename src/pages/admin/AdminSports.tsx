@@ -15,15 +15,8 @@ import { Plus, Edit, Trash2, Download, ChevronDown, ChevronRight, Trophy, Users,
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
 import { 
-  AGE_CATEGORIES, 
   GENDER_OPTIONS, 
-  SPORT_TYPES, 
-  TEAM_SPORTS, 
-  INDIVIDUAL_SPORTS,
-  getSportsByType,
-  getCategoriesForSport,
-  getSubCategoriesForSportAndCategory,
-  getAgeGroupsForSport
+  SPORT_TYPES
 } from "@/lib/sportsData";
 
 const AdminSports = () => {
@@ -31,10 +24,12 @@ const AdminSports = () => {
   const navigate = useNavigate();
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
-  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [isEditSportOpen, setIsEditSportOpen] = useState(false);
   const [editingSport, setEditingSport] = useState<any>(null);
   const [editingSubCategory, setEditingSubCategory] = useState<any>(null);
   const [isEditSubCategoryOpen, setIsEditSubCategoryOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [isEditCategoryOpen, setIsEditCategoryOpen] = useState(false);
   const [newSport, setNewSport] = useState({
     sportType: "Individual",
     sportName: "",
@@ -53,13 +48,15 @@ const AdminSports = () => {
   // Note: Fee rules are now supported for both Individual and Team sports
   // No need to clear fee rules when switching sport types
   
-  const [newSubCategory, setNewSubCategory] = useState({ 
-    parentSport: "", 
-    name: "", 
-    fee: "", 
-    gender: "other",
-    level: 1
+  const [newSubCategory, setNewSubCategory] = useState({
+    parentSport: "",
+    name: ""
   });
+  const [editingCategoryData, setEditingCategoryData] = useState({
+    name: "",
+    subcategories: [] as any[]
+  });
+  const [deletedSubcategories, setDeletedSubcategories] = useState<any[]>([]);
   
   // State for API data
   const [sports, setSports] = useState<any[]>([]);
@@ -180,7 +177,7 @@ const AdminSports = () => {
         }
 
         // Validate sub-categories within this category
-        const validSubCategories = (category.subCategories || []).filter(sub => sub.name.trim());
+        const validSubCategories = (category.subcategories || []).filter(sub => sub.name.trim());
         for (const subCat of validSubCategories) {
           if (!subCat.name.trim()) {
             toast({
@@ -204,13 +201,8 @@ const AdminSports = () => {
         max_limit: newSport.participantLimit ? parseInt(newSport.participantLimit) : null,
         categories: validCategories.map(category => ({
           name: category.name,
-          ageFrom: category.ageFrom,
-          ageTo: category.ageTo,
-          limitPerInstitution: category.limitPerInstitution ? parseInt(category.limitPerInstitution) : null,
-          subCategories: (category.subCategories || []).filter(sub => sub.name.trim()).map(sub => ({
-            name: sub.name,
-            ageFrom: sub.ageFrom,
-            ageTo: sub.ageTo
+          subcategories: (category.subcategories || []).filter(sub => sub.name.trim()).map(sub => ({
+            name: sub.name
           }))
         }))
       };
@@ -290,59 +282,27 @@ const AdminSports = () => {
         maxPlayer: sport.type === "Team" ? (sport.max_limit || "") : ""
       });
       
-      // Fetch real categories and subcategories from database
-      if (sport.id) {
-        const categoriesResponse = await apiService.getSportCategories(sport.id);
-        if (categoriesResponse.data && categoriesResponse.data.success) {
-          const categoriesData = categoriesResponse.data.data || [];
-          
-          // For each category, fetch its subcategories
-          const categoriesWithSubcategories = await Promise.all(
-            categoriesData.map(async (category: any) => {
-              try {
-                const subcategoriesResponse = await apiService.getSportSubCategories(sport.id, category.id);
-                const subcategories = subcategoriesResponse.data && subcategoriesResponse.data.success 
-                  ? subcategoriesResponse.data.data || []
-                  : [];
-                
-                return {
-                  ...category,
-                  subcategories: subcategories
-                };
-              } catch (error) {
-                console.error(`Error fetching subcategories for category ${category.id}:`, error);
-                return {
-                  ...category,
-                  subcategories: []
-                };
-              }
-            })
-          );
-          
-          setCategories(categoriesWithSubcategories);
-        } else {
-          setCategories([]);
-        }
-        
-        // Load fee rules for this sport (both Individual and Team sports)
-        try {
-          const feeRulesResponse = await apiService.getSportFeeRules(sport.id);
-          if (feeRulesResponse.data && feeRulesResponse.data.success) {
-            setFeeRules(feeRulesResponse.data.data || []);
-          } else {
-            setFeeRules([]);
-          }
-        } catch (error) {
-          console.error('Error fetching fee rules:', error);
-          setFeeRules([]);
-        }
+      // Use categories and subcategories that are already loaded from the database
+      // The sport object already contains the complete data structure from /admin/sports
+      if (sport.categories && Array.isArray(sport.categories)) {
+        console.log('🏆 Using existing categories data:', sport.categories);
+        setCategories(sport.categories);
       } else {
+        console.log('⚠️ No categories found in sport data, setting empty array');
         setCategories([]);
+      }
+      
+      // Fee rules are already included in the sport data from /admin/sports
+      if (sport.fee_rules && Array.isArray(sport.fee_rules)) {
+        console.log('💰 Using existing fee rules data:', sport.fee_rules);
+        setFeeRules(sport.fee_rules);
+      } else {
+        console.log('⚠️ No fee rules found in sport data, setting empty array');
         setFeeRules([]);
       }
       
       setSubCategories([]);
-      setIsEditFormOpen(true);
+      setIsEditSportOpen(true);
     } catch (error) {
       console.error('Error loading sport data for editing:', error);
       toast({
@@ -406,7 +366,7 @@ const AdminSports = () => {
         }
 
         // Validate sub-categories for this category
-        const validSubCategories = (category.subCategories || []).filter(sub => sub.name.trim());
+        const validSubCategories = (category.subcategories || []).filter(sub => sub.name.trim());
         for (const subCat of validSubCategories) {
           if (!subCat.name.trim()) {
             toast({
@@ -514,9 +474,15 @@ const AdminSports = () => {
         });
       } else {
         // Create new category
-        await apiService.addSportCategory(editingSport.id.toString(), {
-          name: category.name.trim()
+        const categoryResponse = await apiService.addSportCategory(editingSport.id.toString(), {
+          name: category.name.trim(),
+          fee: 0.00  // Default fee for new categories
         });
+        
+        // Update the category object with the new ID from the response
+        if (categoryResponse.data && categoryResponse.data.success) {
+          category.id = categoryResponse.data.data.id;
+        }
       }
         
         // Update subcategories for this category
@@ -526,16 +492,12 @@ const AdminSports = () => {
             // Update existing subcategory
             await apiService.updateSubCategory(subcategory.id.toString(), {
               name: subcategory.name.trim(),
-              age_from: subcategory.age_from || subcategory.ageFrom,
-              age_to: subcategory.age_to || subcategory.ageTo,
               is_active: subcategory.is_active !== false
             });
           } else {
             // Create new subcategory
             await apiService.addSportSubCategory(category.id.toString(), {
-              name: subcategory.name.trim(),
-              age_from: subcategory.age_from || subcategory.ageFrom,
-              age_to: subcategory.age_to || subcategory.ageTo
+              name: subcategory.name.trim()
             });
           }
         }
@@ -546,7 +508,7 @@ const AdminSports = () => {
         description: "Sport updated successfully!",
       });
       
-      setIsEditFormOpen(false);
+      setIsEditSportOpen(false);
       setEditingSport(null);
       setNewSport({ 
         sportType: "Individual",
@@ -609,14 +571,16 @@ const AdminSports = () => {
       }
 
       // Add subcategory via API
-      await apiService.addSubCategory(sportId, newSubCategory);
+      await apiService.addSubCategory(sportId, {
+        name: newSubCategory.name.trim()
+      });
       
       toast({
         title: "Success",
         description: "Sub-category added successfully!",
       });
       
-      setNewSubCategory({ parentSport: "", name: "", fee: "", gender: "other", level: 1 });
+      setNewSubCategory({ parentSport: "", name: "" });
       
       // Refresh sports list
       fetchSports();
@@ -634,12 +598,86 @@ const AdminSports = () => {
     setEditingSubCategory(subCategory);
     setNewSubCategory({
       parentSport: subCategory.sportId || "",
-      name: subCategory.name || "",
-      fee: subCategory.fee?.toString() || subCategory.fees?.toString() || "",
-      gender: subCategory.gender || subCategory.gender_allowed || "other",
-      level: subCategory.level || 1
+      name: subCategory.name || ""
     });
     setIsEditSubCategoryOpen(true);
+  };
+
+  const handleEditCategory = (category: any) => {
+    console.log('🏆 Editing category:', category);
+    setEditingCategory(category);
+    setEditingCategoryData({
+      name: category.name || "",
+      subcategories: category.subcategories || []
+    });
+    setDeletedSubcategories([]); // Reset deleted subcategories
+    setIsEditCategoryOpen(true);
+  };
+
+  const handleUpdateCategory = async () => {
+    try {
+      // Validate category data
+      if (!editingCategoryData.name.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Category name is required",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update category name
+      await apiService.updateCategory(parseInt(editingCategory.id), {
+        name: editingCategoryData.name.trim(),
+        is_active: editingCategory.is_active !== false
+      });
+
+      // Delete subcategories that were marked for deletion
+      for (const deletedSubcategory of deletedSubcategories) {
+        if (deletedSubcategory.id) {
+          console.log('🗑️ Deleting subcategory:', deletedSubcategory);
+          await apiService.deleteSportSubCategory(deletedSubcategory.id.toString());
+        }
+      }
+
+      // Update subcategories
+      for (const subcategory of editingCategoryData.subcategories) {
+        if (subcategory.name.trim()) {
+          if (subcategory.id) {
+            // Update existing subcategory
+            await apiService.updateSubCategory(parseInt(subcategory.id), {
+              name: subcategory.name.trim(),
+              is_active: subcategory.is_active !== false
+            });
+          } else {
+            // Create new subcategory
+            await apiService.addSportSubCategory(editingCategory.id.toString(), {
+              name: subcategory.name.trim()
+            });
+          }
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "Category updated successfully!",
+      });
+
+      setIsEditCategoryOpen(false);
+      setEditingCategory(null);
+      setEditingCategoryData({ name: "", subcategories: [] });
+      setDeletedSubcategories([]);
+
+      // Refresh sports list
+      fetchSports();
+    } catch (error) {
+      console.error('Error updating category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update category. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleUpdateSubCategory = async () => {
@@ -654,8 +692,26 @@ const AdminSports = () => {
         return;
       }
 
+      // Check if editingSubCategory has a valid ID
+      if (!editingSubCategory || !editingSubCategory.id) {
+        toast({
+          title: "Error",
+          description: "Invalid subcategory data. Please try refreshing the page.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Updating subcategory:', {
+        id: editingSubCategory.id,
+        name: newSubCategory.name.trim(),
+        subcategoryData: editingSubCategory
+      });
+
       // Update subcategory via API
-      await apiService.updateSubCategory(parseInt(editingSubCategory.id), newSubCategory);
+      await apiService.updateSubCategory(parseInt(editingSubCategory.id), {
+        name: newSubCategory.name.trim()
+      });
       
       toast({
         title: "Success",
@@ -664,15 +720,16 @@ const AdminSports = () => {
       
       setIsEditSubCategoryOpen(false);
       setEditingSubCategory(null);
-      setNewSubCategory({ parentSport: "", name: "", fee: "", gender: "other", level: 1 });
+      setNewSubCategory({ parentSport: "", name: "" });
       
       // Refresh sports list
       fetchSports();
     } catch (error) {
       console.error('Error updating subcategory:', error);
+      console.error('Editing subcategory data:', editingSubCategory);
       toast({
         title: "Error",
-        description: "Failed to update sub-category",
+        description: `Failed to update sub-category. The subcategory may have been deleted or doesn't exist. Please refresh the page and try again.`,
         variant: "destructive",
       });
     }
@@ -681,7 +738,7 @@ const AdminSports = () => {
   const handleDeleteCategory = async (categoryId: string) => {
     try {
       // Delete category via API
-      await apiService.deleteCategory(categoryId);
+      await apiService.deleteSportCategory(categoryId);
       
       toast({
         title: "Success",
@@ -907,10 +964,7 @@ const AdminSports = () => {
                       onClick={() => {
                         const newCategory = {
                           name: "",
-                          ageFrom: "",
-                          ageTo: "",
-                          limitPerInstitution: "",
-                          subCategories: []
+                          subcategories: []
                         };
                         setCategories([...categories, newCategory]);
                       }}
@@ -948,47 +1002,8 @@ const AdminSports = () => {
                             }}
                           />
                         </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Limit per Institution</Label>
-                          <Input
-                            type="number"
-                            placeholder="Optional limit"
-                            value={category.limitPerInstitution}
-                            onChange={(e) => {
-                              const updated = [...categories];
-                              updated[categoryIndex].limitPerInstitution = e.target.value;
-                              setCategories(updated);
-                            }}
-                          />
-                        </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Age From</Label>
-                          <Input
-                            placeholder="e.g., U9, U11, 12, 15"
-                            value={category.ageFrom}
-                            onChange={(e) => {
-                              const updated = [...categories];
-                              updated[categoryIndex].ageFrom = e.target.value;
-                              setCategories(updated);
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Age To</Label>
-                          <Input
-                            placeholder="e.g., U19, U17, 18, 21"
-                            value={category.ageTo}
-                            onChange={(e) => {
-                              const updated = [...categories];
-                              updated[categoryIndex].ageTo = e.target.value;
-                              setCategories(updated);
-                            }}
-                          />
-                        </div>
-                      </div>
 
                       {/* Sub-Categories for this Category */}
                       <div className="space-y-3">
@@ -1005,7 +1020,7 @@ const AdminSports = () => {
                                 ageTo: ""
                               };
                               const updated = [...categories];
-                              updated[categoryIndex].subCategories = [...(updated[categoryIndex].subCategories || []), newSubCategory];
+                              updated[categoryIndex].subcategories = [...(updated[categoryIndex].subcategories || []), newSubCategory];
                               setCategories(updated);
                             }}
                           >
@@ -1014,7 +1029,7 @@ const AdminSports = () => {
                           </Button>
                         </div>
                         
-                        {(category.subCategories || []).map((subCat, subIndex) => (
+                        {(category.subcategories || []).map((subCat, subIndex) => (
                           <div key={subIndex} className="p-3 border rounded-lg space-y-3 bg-background">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs font-medium">Sub-Category {subIndex + 1}</Label>
@@ -1024,7 +1039,7 @@ const AdminSports = () => {
                                 size="sm"
                                 onClick={() => {
                                   const updated = [...categories];
-                                  updated[categoryIndex].subCategories = updated[categoryIndex].subCategories.filter((_, i) => i !== subIndex);
+                                  updated[categoryIndex].subcategories = updated[categoryIndex].subcategories.filter((_, i) => i !== subIndex);
                                   setCategories(updated);
                                 }}
                                 className="text-destructive hover:text-destructive"
@@ -1033,43 +1048,17 @@ const AdminSports = () => {
                               </Button>
                             </div>
                             
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Sub-Category Name *</Label>
-                                <Input
-                                  placeholder="e.g., 50m, 100m, Doubles"
-                                  value={subCat.name}
-                                  onChange={(e) => {
-                                    const updated = [...categories];
-                                    updated[categoryIndex].subCategories[subIndex].name = e.target.value;
-                                    setCategories(updated);
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Age From</Label>
-                                <Input
-                                  placeholder="e.g., U9, U11, 12, 15"
-                                  value={subCat.ageFrom}
-                                  onChange={(e) => {
-                                    const updated = [...categories];
-                                    updated[categoryIndex].subCategories[subIndex].ageFrom = e.target.value;
-                                    setCategories(updated);
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Age To</Label>
-                                <Input
-                                  placeholder="e.g., U19, U17, 18, 21"
-                                  value={subCat.ageTo}
-                                  onChange={(e) => {
-                                    const updated = [...categories];
-                                    updated[categoryIndex].subCategories[subIndex].ageTo = e.target.value;
-                                    setCategories(updated);
-                                  }}
-                                />
-                              </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Sub-Category Name *</Label>
+                              <Input
+                                placeholder="e.g., 50m, 100m, Doubles"
+                                value={subCat.name}
+                                onChange={(e) => {
+                                  const updated = [...categories];
+                                  updated[categoryIndex].subcategories[subIndex].name = e.target.value;
+                                  setCategories(updated);
+                                }}
+                              />
                             </div>
                           </div>
                         ))}
@@ -1107,7 +1096,7 @@ const AdminSports = () => {
       </div>
 
       {/* Edit Sport Dialog */}
-      <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen}>
+      <Dialog open={isEditSportOpen} onOpenChange={setIsEditSportOpen}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Sport</DialogTitle>
@@ -1416,43 +1405,17 @@ const AdminSports = () => {
                           </Button>
                         </div>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Sub-Category Name *</Label>
-                            <Input
-                              placeholder="e.g., 50m, 100m, Doubles"
-                              value={subCat.name || ''}
-                              onChange={(e) => {
-                                const updated = [...categories];
-                                updated[categoryIndex].subcategories[subIndex].name = e.target.value;
-                                setCategories(updated);
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Age From</Label>
-                            <Input
-                              placeholder="e.g., U9, U11, 12, 15"
-                              value={subCat.age_from || subCat.ageFrom || ''}
-                              onChange={(e) => {
-                                const updated = [...categories];
-                                updated[categoryIndex].subcategories[subIndex].age_from = e.target.value;
-                                setCategories(updated);
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Age To</Label>
-                            <Input
-                              placeholder="e.g., U19, U17, 18, 21"
-                              value={subCat.age_to || subCat.ageTo || ''}
-                              onChange={(e) => {
-                                const updated = [...categories];
-                                updated[categoryIndex].subcategories[subIndex].age_to = e.target.value;
-                                setCategories(updated);
-                              }}
-                            />
-                          </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Sub-Category Name *</Label>
+                          <Input
+                            placeholder="e.g., 50m, 100m, Doubles"
+                            value={subCat.name || ''}
+                            onChange={(e) => {
+                              const updated = [...categories];
+                              updated[categoryIndex].subcategories[subIndex].name = e.target.value;
+                              setCategories(updated);
+                            }}
+                          />
                         </div>
                         
                         <div className="flex items-center gap-2">
@@ -1523,62 +1486,140 @@ const AdminSports = () => {
                 placeholder="e.g., Under 16 Boys"
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="editSubCategoryFee">Fee (KSh )</Label>
-                <Input
-                  id="editSubCategoryFee"
-                  type="number"
-                  value={newSubCategory.fee}
-                  onChange={(e) => setNewSubCategory({...newSubCategory, fee: e.target.value})}
-                  placeholder="500"
-                />
-              </div>
-              <div>
-                <Label htmlFor="editSubCategoryLevel">Level</Label>
-                <Select 
-                  value={(newSubCategory.level || 1).toString()} 
-                  onValueChange={(value) => setNewSubCategory({...newSubCategory, level: parseInt(value)})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Level 1</SelectItem>
-                    <SelectItem value="2">Level 2</SelectItem>
-                    <SelectItem value="3">Level 3</SelectItem>
-                    <SelectItem value="4">Level 4</SelectItem>
-                    <SelectItem value="5">Level 5</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="editSubCategoryGender">Gender Allowed</Label>
-              <Select 
-                value={newSubCategory.gender} 
-                onValueChange={(value) => setNewSubCategory({...newSubCategory, gender: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select gender" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Both">Both</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => {
                 setIsEditSubCategoryOpen(false);
                 setEditingSubCategory(null);
-                setNewSubCategory({ parentSport: "", name: "", fee: "", gender: "other", level: 1 });
+                setNewSubCategory({ parentSport: "", name: "" });
               }}>
                 Cancel
               </Button>
               <Button onClick={handleUpdateSubCategory}>
                 Update Sub-category
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={isEditCategoryOpen} onOpenChange={setIsEditCategoryOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Category</DialogTitle>
+            <DialogDescription>
+              Update category information and its sub-categories.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Category Name */}
+            <div>
+              <Label htmlFor="editCategoryName">Category Name *</Label>
+              <Input
+                id="editCategoryName"
+                value={editingCategoryData.name}
+                onChange={(e) => setEditingCategoryData({
+                  ...editingCategoryData,
+                  name: e.target.value
+                })}
+                placeholder="e.g., Distance, Stroke, Relay"
+              />
+            </div>
+
+            {/* Subcategories Section */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <Label className="text-lg font-medium">Sub-categories</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newSubcategory = {
+                      id: null,
+                      name: "",
+                      is_active: true
+                    };
+                    setEditingCategoryData({
+                      ...editingCategoryData,
+                      subcategories: [...editingCategoryData.subcategories, newSubcategory]
+                    });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Sub-category
+                </Button>
+              </div>
+              
+              {editingCategoryData.subcategories.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No sub-categories available. Click "Add Sub-category" to create one.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {editingCategoryData.subcategories.map((subcategory, index) => (
+                    <div key={index} className="p-3 border rounded-lg space-y-3 bg-background">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Sub-category {index + 1}</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const subcategoryToDelete = editingCategoryData.subcategories[index];
+                            
+                            // If it's an existing subcategory (has an ID), add it to deleted list
+                            if (subcategoryToDelete.id) {
+                              setDeletedSubcategories(prev => [...prev, subcategoryToDelete]);
+                            }
+                            
+                            // Remove from the current list
+                            const updated = [...editingCategoryData.subcategories];
+                            updated.splice(index, 1);
+                            setEditingCategoryData({
+                              ...editingCategoryData,
+                              subcategories: updated
+                            });
+                          }}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm text-muted-foreground">Sub-category Name *</Label>
+                        <Input
+                          placeholder="e.g., 25m, 50m, 100m, Freestyle"
+                          value={subcategory.name}
+                          onChange={(e) => {
+                            const updated = [...editingCategoryData.subcategories];
+                            updated[index].name = e.target.value;
+                            setEditingCategoryData({
+                              ...editingCategoryData,
+                              subcategories: updated
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => {
+                setIsEditCategoryOpen(false);
+                setEditingCategory(null);
+                setEditingCategoryData({ name: "", subcategories: [] });
+                setDeletedSubcategories([]);
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateCategory}>
+                Update Category
               </Button>
             </div>
           </div>
@@ -1696,7 +1737,7 @@ const AdminSports = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleEditSubCategory(category)}
+                                  onClick={() => handleEditCategory(category)}
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>

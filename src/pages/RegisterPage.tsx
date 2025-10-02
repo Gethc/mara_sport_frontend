@@ -15,7 +15,7 @@ import { apiService } from "@/services/api";
 import { 
   User, Mail, Calendar, School, IdCard, Phone, Upload, Users, Heart, 
   AlertTriangle, Trophy, Shield, FileText, CheckCircle, UserCheck, 
-  Activity, Award, UsersIcon as Team, Target
+  Activity, Award, UsersIcon as Team, Target, MapPin
 } from "lucide-react";
 import sportsHero from "@/assets/sports-hero.jpg";
 
@@ -77,11 +77,22 @@ const RegisterPage = () => {
     participationType: "",
     selectedSports: [],
     
+    // Additional personal details
+    fname: "",
+    mname: "",
+    lname: "",
+    dob: "",
+    student_id: "",
+    phoneNumber: "",
+    instituteType: "",
+    
     // Step 2: Document Upload
     documents: {
       studentIdImage: null,
       ageProofDocument: null
     },
+    currentClass: "",
+    academicYear: "",
     
     // Step 3: Parent & Medical Info
     parentInfo: {
@@ -94,6 +105,33 @@ const RegisterPage = () => {
       allergiesConditions: "no",
       allergiesDetails: ""
     },
+    parentGuardianName: "",
+    parentPhone: "",
+    parentEmail: "",
+    parentOccupation: "",
+    parentDesignation: "",
+    parentWorkplace: "",
+    
+    // Address details
+    streetAddress: "",
+    city: "",
+    state: "",
+    country: "",
+    postalCode: "",
+    zipCode: "",
+    landmark: "",
+    
+    // Emergency contact
+    emergencyContactName: "",
+    emergencyContactRelation: "",
+    emergencyContactPhone: "",
+    emergencyContactEmail: "",
+    
+    // Medical details
+    medicalQuestion1: "",
+    medicalQuestion2: "",
+    hasAllergies: false,
+    allergiesDetails: "",
     
     // Step 4: Sports Selection
     sportsSelection: {
@@ -179,8 +217,8 @@ const RegisterPage = () => {
     try {
       // First try to get complete student data from database
       const completeResponse = await apiService.getCompleteStudentData(email);
-      if (completeResponse.data && completeResponse.data.success) {
-        const studentData = completeResponse.data.data;
+      if (completeResponse.data && (completeResponse.data as any).success) {
+        const studentData = (completeResponse.data as any).data;
         
         // Load personal details
         if (studentData.student) {
@@ -310,7 +348,7 @@ const RegisterPage = () => {
       
       // Fallback to registration progress if complete data not available
       const response = await apiService.getStudentRegistrationProgress(email);
-      const progressData = response.data;
+      const progressData = response.data as any;
       
       if (progressData) {
         // Load form data from progress
@@ -420,32 +458,12 @@ const RegisterPage = () => {
         if (!formData.parentEmail) stepErrors.push("Parent/Guardian Email is required");
         break;
       case 4:
-        if (!formData.streetAddress) stepErrors.push("Street Address is required");
-        if (!formData.city) stepErrors.push("City is required");
-        if (!formData.state) stepErrors.push("State is required");
-        if (!formData.country) stepErrors.push("Country is required");
-        if (!formData.postalCode) stepErrors.push("Postal Code is required");
-        break;
-      case 5:
-        if (!formData.emergencyContactName) stepErrors.push("Emergency Contact Name is required");
-        if (!formData.emergencyContactRelation) stepErrors.push("Relationship is required");
-        if (!formData.emergencyContactPhone) stepErrors.push("Emergency Contact Phone is required");
-        break;
-      case 6:
-        if (!formData.medicalQuestion1) stepErrors.push("Medical Question 1 is required");
-        if (!formData.medicalQuestion2) stepErrors.push("Medical Question 2 is required");
-        break;
-      case 7:
         if (!formData.participationType) stepErrors.push("Participation Type is required");
         if (formData.selectedSports.length === 0) stepErrors.push("At least one sport must be selected");
         break;
-      case 8:
+      case 5:
         if (!agreements.waiver) stepErrors.push("Waiver agreement is required");
-        break;
-      case 9:
         if (!agreements.privacy) stepErrors.push("Privacy policy agreement is required");
-        break;
-      case 10:
         if (!agreements.declaration) stepErrors.push("Declaration agreement is required");
         break;
     }
@@ -622,7 +640,7 @@ const RegisterPage = () => {
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <Label className="text-base font-semibold">First Name *</Label>
+                <Label className="text-base font-semibold">First Name <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Input
@@ -646,7 +664,7 @@ const RegisterPage = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Last Name *</Label>
+                <Label className="text-base font-semibold">Last Name <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Input
@@ -660,7 +678,7 @@ const RegisterPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-base font-semibold">Email Address *</Label>
+              <Label className="text-base font-semibold">Email Address <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                 <Input
@@ -675,7 +693,7 @@ const RegisterPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Date of Birth *</Label>
+                <Label className="text-base font-semibold">Date of Birth <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Input
@@ -703,7 +721,7 @@ const RegisterPage = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Student ID *</Label>
+                <Label className="text-base font-semibold">Student ID <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <IdCard className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Input
@@ -718,7 +736,7 @@ const RegisterPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Institution *</Label>
+                <Label className="text-base font-semibold">Institution <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <School className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                   <Select value={formData.instituteName} onValueChange={(value) => setFormData(prev => ({ ...prev, instituteName: value }))}>
@@ -737,7 +755,7 @@ const RegisterPage = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Phone Number *</Label>
+                <Label className="text-base font-semibold">Phone Number <span className="text-red-500">*</span></Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
@@ -772,7 +790,7 @@ const RegisterPage = () => {
 
             {formData.instituteName === "Other" && (
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Institution Name *</Label>
+                <Label className="text-base font-semibold">Institution Name <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="Enter your institution name"
                   value={formData.otherInstitute}
@@ -923,6 +941,26 @@ const RegisterPage = () => {
               </div>
             </div>
 
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Current Class/Year <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="e.g., 12th Grade, 2nd Year"
+                  value={formData.currentClass}
+                  onChange={(e) => handleInputChange("currentClass", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Academic Year <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="e.g., 2024-25"
+                  value={formData.academicYear}
+                  onChange={(e) => handleInputChange("academicYear", e.target.value)}
+                />
+              </div>
+            </div>
+
             {/* Document Guidelines */}
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
@@ -937,67 +975,78 @@ const RegisterPage = () => {
                 <li>• Files will be securely stored and only used for verification</li>
               </ul>
             </div>
+            </div>
           </div>
         );
 
       case 3:
         return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Parent/Guardian Name *</Label>
-                <Input
-                  placeholder="Full Name"
-                  value={formData.parentGuardianName}
-                  onChange={(e) => handleInputChange("parentGuardianName", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Occupation</Label>
-                <Input
-                  placeholder="e.g., Engineer, Teacher, Doctor"
-                  value={formData.parentOccupation}
-                  onChange={(e) => handleInputChange("parentOccupation", e.target.value)}
-                />
-              </div>
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold">Parent & Medical Information</h3>
+              <p className="text-muted-foreground">Please provide parent/guardian and medical information.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Designation</Label>
-                <Input
-                  placeholder="e.g., Senior Manager, Principal"
-                  value={formData.parentDesignation}
-                  onChange={(e) => handleInputChange("parentDesignation", e.target.value)}
-                />
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Parent/Guardian Name <span className="text-red-500">*</span></Label>
+                  <Input
+                    placeholder="Full Name"
+                    value={formData.parentGuardianName}
+                    onChange={(e) => handleInputChange("parentGuardianName", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Occupation</Label>
+                  <Input
+                    placeholder="e.g., Engineer, Teacher, Doctor"
+                    value={formData.parentOccupation}
+                    onChange={(e) => handleInputChange("parentOccupation", e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Workplace</Label>
-                <Input
-                  placeholder="Company/Organization Name"
-                  value={formData.parentWorkplace}
-                  onChange={(e) => handleInputChange("parentWorkplace", e.target.value)}
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Phone Number *</Label>
-                <Input
-                  placeholder="+91 9876543210"
-                  value={formData.parentPhone}
-                  onChange={(e) => handleInputChange("parentPhone", e.target.value)}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Phone Number <span className="text-red-500">*</span></Label>
+                  <Input
+                    placeholder="+91 9876543210"
+                    value={formData.parentPhone}
+                    onChange={(e) => handleInputChange("parentPhone", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email Address <span className="text-red-500">*</span></Label>
+                  <Input
+                    type="email"
+                    placeholder="parent@email.com"
+                    value={formData.parentEmail}
+                    onChange={(e) => handleInputChange("parentEmail", e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Email Address *</Label>
-                <Input
-                  type="email"
-                  placeholder="parent@email.com"
-                  value={formData.parentEmail}
-                  onChange={(e) => handleInputChange("parentEmail", e.target.value)}
-                />
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Medical Information</Label>
+                  <Textarea
+                    placeholder="Any medical conditions or allergies we should know about?"
+                    value={formData.medicalQuestion1}
+                    onChange={(e) => handleInputChange("medicalQuestion1", e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Current Medications</Label>
+                  <Textarea
+                    placeholder="Are you currently taking any medications?"
+                    value={formData.medicalQuestion2}
+                    onChange={(e) => handleInputChange("medicalQuestion2", e.target.value)}
+                    rows={3}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1005,167 +1054,9 @@ const RegisterPage = () => {
 
       case 4:
         return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Street Address *</Label>
-              <Textarea
-                placeholder="Complete street address"
-                value={formData.streetAddress}
-                onChange={(e) => handleInputChange("streetAddress", e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>City *</Label>
-                <Input
-                  placeholder="New Delhi"
-                  value={formData.city}
-                  onChange={(e) => handleInputChange("city", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>State *</Label>
-                <Input
-                  placeholder="Delhi"
-                  value={formData.state}
-                  onChange={(e) => handleInputChange("state", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Postal Code *</Label>
-                <Input
-                  placeholder="110001"
-                  value={formData.postalCode}
-                  onChange={(e) => handleInputChange("postalCode", e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Country *</Label>
-                <Input
-                  placeholder="India"
-                  value={formData.country}
-                  onChange={(e) => handleInputChange("country", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Landmark</Label>
-                <Input
-                  placeholder="Near Metro Station"
-                  value={formData.landmark}
-                  onChange={(e) => handleInputChange("landmark", e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div className="space-y-4">
-            <div className="relative">
-              <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Emergency Contact Full Name *"
-                value={formData.emergencyContactName}
-                onChange={(e) => handleInputChange("emergencyContactName", e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <Select value={formData.emergencyContactRelation} onValueChange={(value) => handleInputChange("emergencyContactRelation", value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Relationship with Student *" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Parent">Parent</SelectItem>
-                <SelectItem value="Guardian">Guardian</SelectItem>
-                <SelectItem value="Sibling">Sibling</SelectItem>
-                <SelectItem value="Relative">Relative</SelectItem>
-                <SelectItem value="Friend">Friend</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Emergency Contact Phone Number *"
-                value={formData.emergencyContactPhone}
-                onChange={(e) => handleInputChange("emergencyContactPhone", e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                type="email"
-                placeholder="Emergency Contact Email (Optional)"
-                value={formData.emergencyContactEmail}
-                onChange={(e) => handleInputChange("emergencyContactEmail", e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-        );
-
-      case 6:
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Medical Question 1 *</Label>
-              <Textarea
-                placeholder="Do you have any existing medical conditions?"
-                value={formData.medicalQuestion1}
-                onChange={(e) => handleInputChange("medicalQuestion1", e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Medical Question 2 *</Label>
-              <Textarea
-                placeholder="Are you currently taking any medications?"
-                value={formData.medicalQuestion2}
-                onChange={(e) => handleInputChange("medicalQuestion2", e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="allergies"
-                  checked={formData.hasAllergies}
-                  onCheckedChange={(checked) => handleInputChange("hasAllergies", !!checked)}
-                />
-                <Label htmlFor="allergies" className="cursor-pointer">
-                  Any Allergies/Health Conditions?
-                </Label>
-              </div>
-
-              {formData.hasAllergies && (
-                <Textarea
-                  placeholder="Please provide details about allergies or health conditions"
-                  value={formData.allergiesDetails}
-                  onChange={(e) => handleInputChange("allergiesDetails", e.target.value)}
-                  rows={3}
-                />
-              )}
-            </div>
-          </div>
-        );
-
-      case 7:
-        return (
           <div className="space-y-6">
             <div className="space-y-4">
-              <Label className="text-base font-semibold">Participation Type *</Label>
+              <Label className="text-base font-semibold">Participation Type <span className="text-red-500">*</span></Label>
               <div className="grid grid-cols-2 gap-4">
                 <div 
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
@@ -1225,28 +1116,6 @@ const RegisterPage = () => {
               </div>
             )}
 
-            {/* Display previously selected sports from loaded data */}
-            {formData.sportsSelection?.selectedSports && formData.sportsSelection.selectedSports.length > 0 && (
-              <div className="space-y-3">
-                <Label className="text-base font-semibold text-green-600">Previously Selected Sports:</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {formData.sportsSelection.selectedSports.map((sport: any, index: number) => (
-                    <div key={index} className="p-3 border border-green-200 rounded-lg bg-green-50">
-                      <div className="flex items-center space-x-2">
-                        <Trophy className="h-4 w-4 text-green-600" />
-                        <div>
-                          <span className="text-sm font-medium text-green-800">{sport.sport_name}</span>
-                          <p className="text-xs text-green-600">
-                            {sport.category_name} - {sport.sub_category_name} ({sport.gender_label}, Age {sport.ageFrom}-{sport.ageTo})
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {formData.selectedSports.length > 0 && (
               <div className="p-4 bg-muted/50 rounded-lg">
                 <h3 className="font-semibold mb-2">Selected Sports:</h3>
@@ -1263,100 +1132,110 @@ const RegisterPage = () => {
           </div>
         );
 
-      case 8:
+      case 5:
         return (
-          <div className="space-y-4">
-            <div className="max-h-60 overflow-y-auto p-4 border rounded-lg bg-muted/50">
-              <h3 className="font-semibold mb-3">Waiver & Release of Liability</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                I understand that participation in sports activities involves inherent risks, including but not limited to the risk of injury, disability, or death. I voluntarily assume all risks associated with participation and hereby release and hold harmless the event organizers, sponsors, and all associated parties from any and all claims, demands, or causes of action arising out of or related to any loss, damage, or injury that may be sustained by the participant.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                I acknowledge that I have read and understand this waiver, and I voluntarily agree to its terms and conditions.
-              </p>
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold">Review & Agreements</h3>
+              <p className="text-muted-foreground">Please review your information and accept the required agreements.</p>
             </div>
 
-            <div className="flex items-start space-x-2 p-4 border rounded-lg">
-              <Checkbox
-                id="waiver"
-                checked={agreements.waiver}
-                onCheckedChange={(checked) => setAgreements(prev => ({ ...prev, waiver: !!checked }))}
-              />
-              <div>
-                <Label htmlFor="waiver" className="cursor-pointer font-medium">
-                  I agree to the Waiver & Release of Liability *
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  By checking this box, I acknowledge that I have read, understood, and agree to the terms.
-                </p>
+            {/* Review Summary */}
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+              <h4 className="font-semibold">Registration Summary</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p><strong>Name:</strong> {formData.firstName} {formData.middleName} {formData.lastName}</p>
+                  <p><strong>Email:</strong> {formData.email}</p>
+                  <p><strong>Phone:</strong> {formData.phone}</p>
+                  <p><strong>Institute:</strong> {formData.instituteName}</p>
+                </div>
+                <div>
+                  <p><strong>Participation:</strong> {formData.participationType}</p>
+                  <p><strong>Sports:</strong> {formData.selectedSports.join(", ")}</p>
+                  <p><strong>Total Fee:</strong> ₹{calculateFees()}</p>
+                </div>
               </div>
             </div>
-          </div>
-        );
 
-      case 9:
-        return (
-          <div className="space-y-4">
-            <div className="max-h-60 overflow-y-auto p-4 border rounded-lg bg-muted/50">
-              <h3 className="font-semibold mb-3">Data Protection & Privacy Notice</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                We collect and process your personal data to facilitate your participation in sports events. This includes your contact information, medical details, and performance data. Your information will be used for event management, emergency contact purposes, and improving our services.
-              </p>
-              <p className="text-sm text-muted-foreground mb-4">
-                We implement appropriate security measures to protect your data and will not share your information with third parties without your consent, except as required by law or for event safety purposes.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                You have the right to access, correct, or delete your personal data at any time by contacting our support team.
-              </p>
-            </div>
-
-            <div className="flex items-start space-x-2 p-4 border rounded-lg">
-              <Checkbox
-                id="privacy"
-                checked={agreements.privacy}
-                onCheckedChange={(checked) => setAgreements(prev => ({ ...prev, privacy: !!checked }))}
-              />
-              <div>
-                <Label htmlFor="privacy" className="cursor-pointer font-medium">
-                  I agree to the Data Protection & Privacy Policy *
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  I consent to the collection and processing of my personal data as described.
+            {/* Agreements */}
+            <div className="space-y-4">
+              <div className="max-h-60 overflow-y-auto p-4 border rounded-lg bg-muted/50">
+                <h3 className="font-semibold mb-3">Waiver & Release of Liability</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  I understand that participation in sports activities involves inherent risks, including but not limited to the risk of injury, disability, or death. I voluntarily assume all risks associated with participation and hereby release and hold harmless the event organizers, sponsors, and all associated parties from any and all claims, demands, or causes of action arising out of or related to any loss, damage, or injury that may be sustained by the participant.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  I acknowledge that I have read and understand this waiver, and I voluntarily agree to its terms and conditions.
                 </p>
               </div>
-            </div>
-          </div>
-        );
 
-      case 10:
-        return (
-          <div className="space-y-4">
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <h3 className="font-semibold mb-3">Final Declaration</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                I hereby declare that all information provided in this registration form is true, accurate, and complete to the best of my knowledge. I understand that any false or misleading information may result in disqualification from the event.
-              </p>
-              <p className="text-sm text-muted-foreground mb-4">
-                I acknowledge that I have read and understood all the terms, conditions, and policies associated with this event registration. I agree to abide by all rules and regulations set forth by the event organizers.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                By submitting this registration, I confirm my commitment to participate in the selected events and understand the associated responsibilities.
-              </p>
-            </div>
+              <div className="flex items-start space-x-2 p-4 border rounded-lg">
+                <Checkbox
+                  id="waiver"
+                  checked={agreements.waiver}
+                  onCheckedChange={(checked) => setAgreements(prev => ({ ...prev, waiver: !!checked }))}
+                />
+                <div>
+                  <Label htmlFor="waiver" className="cursor-pointer font-medium">
+                    I agree to the Waiver & Release of Liability *
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    By checking this box, I acknowledge that I have read, understood, and agree to the terms.
+                  </p>
+                </div>
+              </div>
 
-            <div className="flex items-start space-x-2 p-4 border rounded-lg">
-              <Checkbox
-                id="declaration"
-                checked={agreements.declaration}
-                onCheckedChange={(checked) => setAgreements(prev => ({ ...prev, declaration: !!checked }))}
-              />
-              <div>
-                <Label htmlFor="declaration" className="cursor-pointer font-medium">
-                  I hereby declare that the information provided is true *
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  I confirm the accuracy of all information and my commitment to participate.
+              <div className="max-h-60 overflow-y-auto p-4 border rounded-lg bg-muted/50">
+                <h3 className="font-semibold mb-3">Data Protection & Privacy Notice</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  We collect and process your personal data to facilitate your participation in sports events. This includes your contact information, medical details, and performance data. Your information will be used for event management, emergency contact purposes, and improving our services.
                 </p>
+                <p className="text-sm text-muted-foreground">
+                  You have the right to access, correct, or delete your personal data at any time by contacting our support team.
+                </p>
+              </div>
+
+              <div className="flex items-start space-x-2 p-4 border rounded-lg">
+                <Checkbox
+                  id="privacy"
+                  checked={agreements.privacy}
+                  onCheckedChange={(checked) => setAgreements(prev => ({ ...prev, privacy: !!checked }))}
+                />
+                <div>
+                  <Label htmlFor="privacy" className="cursor-pointer font-medium">
+                    I agree to the Data Protection & Privacy Policy *
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    I consent to the collection and processing of my personal data as described.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 border rounded-lg bg-muted/50">
+                <h3 className="font-semibold mb-3">Final Declaration</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  I hereby declare that all information provided in this registration form is true, accurate, and complete to the best of my knowledge. I understand that any false or misleading information may result in disqualification from the event.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  By submitting this registration, I confirm my commitment to participate in the selected events and understand the associated responsibilities.
+                </p>
+              </div>
+
+              <div className="flex items-start space-x-2 p-4 border rounded-lg">
+                <Checkbox
+                  id="declaration"
+                  checked={agreements.declaration}
+                  onCheckedChange={(checked) => setAgreements(prev => ({ ...prev, declaration: !!checked }))}
+                />
+                <div>
+                  <Label htmlFor="declaration" className="cursor-pointer font-medium">
+                    I hereby declare that the information provided is true *
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    I confirm the accuracy of all information and my commitment to participate.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -1451,13 +1330,13 @@ const RegisterPage = () => {
                 <Button 
                   variant="outline" 
                   onClick={prevStep}
-                  disabled={currentStep === 1}
+                  disabled={currentStep <= 1}
                   className="h-12 px-8 text-base"
                 >
                   Back
                 </Button>
                 
-                {currentStep === totalSteps ? (
+                {currentStep >= totalSteps ? (
                   <Button 
                     onClick={handleSubmit} 
                     className="bg-gradient-primary hover:shadow-glow transition-all duration-300 h-12 px-8 text-base"

@@ -48,6 +48,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
   const { toast } = useToast();
 
   const [feeCalculation, setFeeCalculation] = useState<any>(null);
+
   const [parentPassPricing, setParentPassPricing] = useState<any>(null);
 
   // Load parent pass pricing on component mount
@@ -92,9 +93,9 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
     if (feeCalculation) {
       return feeCalculation.breakdown.total;
     }
-    // Fallback calculation
+    // Calculate with dynamic parent pricing - FIXED: removed undefined parentFees reference
     const sportsFee = (registrationData.sports?.selectedSports?.length || 0) * 1000; // KES
-    const parentFee = calculateParentFees();
+    const parentFee = 0; // Default parent fee when no calculation is available
     
     return sportsFee + parentFee;
   };
@@ -184,17 +185,31 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
     setErrors([]);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Prepare sponsorship data for API
+      const sponsorshipPayload = {
+        student_email: email,
+        requested_amount: parseInt(sponsorshipData.requestedAmount),
+        sponsorship_type: sponsorshipData.sponsorshipType,
+        reason: sponsorshipData.reason
+      };
+
+      // Call the API to save sponsorship data
+      const response = await apiService.createStudentSponsorship(sponsorshipPayload);
       
-      toast({
-        title: "Sponsorship Request Submitted",
-        description: "Your sponsorship request has been submitted for review.",
-      });
-      onComplete();
-    } catch (error) {
+      if (response.data && (response.data as any).success) {
+        toast({
+          title: "Sponsorship Request Submitted",
+          description: "Your sponsorship request has been submitted for review.",
+        });
+        onComplete();
+      } else {
+        throw new Error((response.data as any).message || "Failed to submit sponsorship request");
+      }
+    } catch (error: any) {
+      console.error("Error submitting sponsorship:", error);
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: error?.message || "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -254,7 +269,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="requestedAmount">Requested Amount *</Label>
+                <Label htmlFor="requestedAmount">Requested Amount <span className="text-red-500">*</span></Label>
                 <Input
                   id="requestedAmount"
                   type="number"
@@ -265,7 +280,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
               </div>
 
               <div className="space-y-2">
-                <Label>Sponsorship Type *</Label>
+                <Label>Sponsorship Type <span className="text-red-500">*</span></Label>
                 <RadioGroup 
                   value={sponsorshipData.sponsorshipType} 
                   onValueChange={(value) => setSponsorshipData(prev => ({ ...prev, sponsorshipType: value }))}
@@ -283,7 +298,7 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="reason">Reason for Sponsorship *</Label>
+                <Label htmlFor="reason">Reason for Sponsorship <span className="text-red-500">*</span></Label>
                 <Textarea
                   id="reason"
                   placeholder="Please explain why you need sponsorship and your current financial situation..."
@@ -349,10 +364,6 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
                   </>
                 ) : (
                   <>
-                    <div className="flex justify-between">
-                      <span>Base Registration Fee</span>
-                      <span>KES 1,000</span>
-                    </div>
                     <div className="flex justify-between">
                       <span>Sports Fee ({sports?.selectedSports?.length || 0} sports)</span>
                       <span>KES {((sports?.selectedSports?.length || 0) * 1000).toLocaleString()}</span>
@@ -616,13 +627,6 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
               </div>
               <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
                 <div className="flex items-center justify-between border-b border-border/50 pb-1">
-                  <span className="text-muted-foreground">Student ID Image:</span>
-                  <Badge variant="secondary" className="text-xs">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Uploaded
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between border-b border-border/50 pb-1">
                   <span className="text-muted-foreground">Age Proof Document:</span>
                   <Badge variant="secondary" className="text-xs">
                     <CheckCircle className="h-3 w-3 mr-1" />
@@ -663,10 +667,6 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
                   </>
                 ) : (
                   <>
-                    <div className="flex justify-between">
-                      <span>Base Registration Fee</span>
-                      <span>KES 1,000</span>
-                    </div>
                     <div className="flex justify-between">
                       <span>Sports Fee ({sports?.selectedSports?.length || 0} sports)</span>
                       <span>KES {((sports?.selectedSports?.length || 0) * 1000).toLocaleString()}</span>

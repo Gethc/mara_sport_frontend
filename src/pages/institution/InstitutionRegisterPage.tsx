@@ -428,7 +428,7 @@ const InstitutionRegisterPage = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>City *</Label>
+                        <Label>City <span className="text-red-500">*</span></Label>
                         <Input
                           placeholder="New Delhi"
                           value={formData.city}
@@ -438,7 +438,7 @@ const InstitutionRegisterPage = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>State *</Label>
+                        <Label>State <span className="text-red-500">*</span></Label>
                         <Input
                           placeholder="Delhi"
                           value={formData.state}
@@ -448,7 +448,7 @@ const InstitutionRegisterPage = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Postal Code *</Label>
+                        <Label>Postal Code <span className="text-red-500">*</span></Label>
                         <Input
                           placeholder="110001"
                           value={formData.postalCode}
@@ -460,7 +460,7 @@ const InstitutionRegisterPage = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Country *</Label>
+                        <Label>Country <span className="text-red-500">*</span></Label>
                         <Input
                           placeholder="India"
                           value={formData.country}
@@ -490,7 +490,7 @@ const InstitutionRegisterPage = () => {
                   
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Description *</Label>
+                      <Label>Description <span className="text-red-500">*</span></Label>
                       <Textarea
                         placeholder="Brief description of your institution..."
                         value={formData.description}
@@ -622,7 +622,7 @@ const InstitutionRegisterPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Designation *</Label>
+                      <Label>Designation <span className="text-red-500">*</span></Label>
                       <Input
                         placeholder="Principal"
                         value={formData.contactPersonDesignation}

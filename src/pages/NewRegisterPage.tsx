@@ -90,9 +90,17 @@ export const NewRegisterPage = () => {
   }, [registrationData]);
 
   // Auto-load existing data if we have a saved email but no personal details
+  // Only auto-load if we're not in the middle of a fresh registration
   useEffect(() => {
     const savedEmail = localStorage.getItem('student_registration_email');
-    if (savedEmail && registrationData.email === savedEmail && !registrationData.personalDetails) {
+    const savedData = localStorage.getItem('student_registration_data');
+    
+    // Only auto-load if we have a saved email, it matches current email, 
+    // no personal details yet, AND we have saved data (not a fresh start)
+    if (savedEmail && 
+        registrationData.email === savedEmail && 
+        !registrationData.personalDetails && 
+        savedData) {
       console.log('🔄 Auto-loading existing data for:', savedEmail);
       handleEmailComplete(savedEmail);
     }
@@ -111,6 +119,10 @@ export const NewRegisterPage = () => {
 
   const handleEmailComplete = async (email: string) => {
     setRegistrationData(prev => ({ ...prev, email }));
+    
+    // Clear any old registration data from localStorage for fresh start
+    localStorage.removeItem('student_registration_data');
+    localStorage.removeItem('student_registration_completed_steps');
     
     // Save email to localStorage immediately
     localStorage.setItem('student_registration_email', email);

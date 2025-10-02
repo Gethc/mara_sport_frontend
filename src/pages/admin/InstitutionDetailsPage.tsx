@@ -199,9 +199,9 @@ const InstitutionDetailsPage: React.FC = () => {
           setStudents(formattedStudents);
         }
 
-        // Load sports with payment status from separate API
+        // Load sports with payment status from admin API (not institution API)
         try {
-          const sportsResponse = await apiService.getInstitutionSports(parseInt(institutionId || '0'));
+          const sportsResponse = await apiService.getAdminInstitutionSports(parseInt(institutionId || '0'));
           if ((sportsResponse.data as any)?.success) {
             setSports((sportsResponse.data as any).data || []);
           }

@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Trophy, Plus, Trash2, Users, Target, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { validateAgeForAgeGroup } from "@/lib/ageValidation";
+import { GENDER_OPTIONS } from "@/lib/sportsData";
 
 interface StudentSportsAssignmentProps {
   selectedSports: Array<{
@@ -48,12 +50,11 @@ export const StudentSportsAssignment = ({
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [selectedAgeGroup, setSelectedAgeGroup] = useState("");
-  const [selectedGender, setSelectedGender] = useState("Open");
+  const [selectedGender, setSelectedGender] = useState("Male");
 
   // Age groups for selection (restricted to 9-19 years)
   const allAgeGroups = ["U9", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17", "U18", "U19"];
   const [availableAgeGroups, setAvailableAgeGroups] = useState<string[]>(allAgeGroups);
-  const genderOptions = ["Male", "Female", "Open"];
   const sportTypes = ["Individual", "Team"];
 
   useEffect(() => {
@@ -306,7 +307,7 @@ export const StudentSportsAssignment = ({
     setSelectedCategory("");
     setSelectedSubCategory("");
     setSelectedAgeGroup("");
-    setSelectedGender("Open");
+    setSelectedGender("Male");
     setCategories([]);
     setSubCategories([]);
     setAvailableAgeGroups(allAgeGroups);
@@ -495,7 +496,7 @@ export const StudentSportsAssignment = ({
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
-                  {genderOptions.map((gender) => (
+                  {GENDER_OPTIONS.map((gender) => (
                     <SelectItem key={gender} value={gender}>
                       {gender}
                     </SelectItem>

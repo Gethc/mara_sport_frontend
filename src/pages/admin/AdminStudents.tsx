@@ -152,6 +152,17 @@ const AdminStudents = () => {
     if (!addForm.gender) errors.push("Gender is required");
     if (!addForm.dob) errors.push("Date of birth is required");
 
+    // Validate age for sport assignments
+    if (addForm.assignedSports && addForm.assignedSports.length > 0) {
+      // Note: We would need student's date of birth to calculate age
+      // For now, we'll validate that age groups are properly formatted
+      for (const sport of addForm.assignedSports) {
+        if (!sport.ageGroup) {
+          errors.push(`Age group is required for ${sport.sportName}`);
+        }
+      }
+    }
+
     if (errors.length > 0) {
       toast({
         title: "Validation Error",

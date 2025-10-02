@@ -158,7 +158,6 @@ const ProfilePage = () => {
       });
     }
   };
-
   if (fetching) {
     return (
       <div className="space-y-6">
@@ -337,7 +336,7 @@ const ProfilePage = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="fname">First Name *</Label>
+                  <Label htmlFor="fname">First Name <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
@@ -366,7 +365,7 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="lname">Last Name *</Label>
+                  <Label htmlFor="lname">Last Name <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
@@ -381,7 +380,7 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
+                  <Label htmlFor="email">Email Address <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
@@ -397,7 +396,7 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="dob">Date of Birth *</Label>
+                  <Label htmlFor="dob">Date of Birth <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
@@ -413,7 +412,7 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gender">Gender *</Label>
+                  <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
                   <Select 
                     value={formData.gender} 
                     onValueChange={(value) => handleInputChange("gender", value)}
@@ -459,7 +458,7 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="student_id">Student ID *</Label>
+                  <Label htmlFor="student_id">Student ID <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <IdCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input

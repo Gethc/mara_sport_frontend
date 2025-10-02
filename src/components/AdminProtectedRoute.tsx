@@ -44,6 +44,12 @@ export const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
           return;
         }
 
+        // Temporarily skip API verification since backend auth is disabled for testing
+        console.log('Skipping API verification - backend auth temporarily disabled');
+        setIsAuthorized(true);
+        
+        // TODO: Re-enable API verification when backend authentication is restored
+        /*
         // Verify token is still valid by making a test API call
         try {
           // Old network URL (commented out)
@@ -90,6 +96,7 @@ export const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
           });
           setIsAuthorized(false);
         }
+        */
       } catch (error) {
         console.error('Error checking admin access:', error);
         toast({

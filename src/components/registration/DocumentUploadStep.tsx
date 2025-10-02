@@ -18,7 +18,6 @@ interface DocumentUploadStepProps {
 export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: DocumentUploadStepProps) => {
   const { toast } = useToast();
   const [files, setFiles] = useState({
-    studentIdImage: initialData?.studentIdImage || null as File | null,
     ageProofDocument: initialData?.ageProofDocument || null as File | null,
   });
 
@@ -27,14 +26,24 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
 
   const handleFileChange = (field: keyof typeof files, file: File | null) => {
     setFiles(prev => ({ ...prev, [field]: file }));
+    
+    // Clear previous errors
     setErrors([]);
+    
+    // Validate file size immediately if file is selected
+    if (file && file.size > 500 * 1024) { // 500KB in bytes
+      setErrors(["Age Proof Document must be 500KB or less"]);
+    }
   };
 
   const validateForm = () => {
     const newErrors: string[] = [];
     
-    if (!files.studentIdImage) newErrors.push("Student ID Image is required");
-    if (!files.ageProofDocument) newErrors.push("Age Proof Document is required");
+    if (!files.ageProofDocument) {
+      newErrors.push("Age Proof Document is required");
+    } else if (files.ageProofDocument.size > 500 * 1024) { // 500KB in bytes
+      newErrors.push("Age Proof Document must be 500KB or less");
+    }
     
     // Validate file types
     if (files.studentIdImage && !isValidImageFile(files.studentIdImage)) {
@@ -71,7 +80,6 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
       // Use the new document upload API with actual file upload
       const response = await apiService.uploadDocuments(
         email || initialData?.email,
-        files.studentIdImage || undefined,
         files.ageProofDocument || undefined
       );
       
@@ -110,7 +118,7 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0 || isNaN(bytes)) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -193,7 +201,7 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
                 </div>
                 <div className="flex-1">
                   <Label htmlFor="ageProof" className="text-base font-medium cursor-pointer">
-                    Age Proof Document *
+                    Age Proof Document <span className="text-red-500">*</span>
                   </Label>
                   <p className="text-sm text-muted-foreground mt-1">
                     Birth certificate, passport, or similar official document
@@ -205,13 +213,17 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
                     onChange={(e) => handleFileChange("ageProofDocument", e.target.files?.[0] || null)}
                     className="mt-3"
                   />
-                  {files.ageProofDocument && (
-                    <div className="mt-2 flex items-center space-x-2 text-sm">
-                      <FileImage className="h-4 w-4 text-accent" />
-                      <span className="text-accent font-medium">{files.ageProofDocument.name}</span>
-                      <span className="text-muted-foreground">({formatFileSize(files.ageProofDocument.size)})</span>
-                    </div>
-                  )}
+                  <div className="mt-2 flex items-center space-x-2 text-sm">
+                    <FileImage className="h-4 w-4 text-muted-foreground" />
+                    {files.ageProofDocument ? (
+                      <>
+                        <span className="text-accent font-medium">{files.ageProofDocument.name}</span>
+                        <span className="text-muted-foreground">({formatFileSize(files.ageProofDocument.size)})</span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">Document not selected</span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-2">
                     Accepted formats: JPG, PNG, JPEG only • Max size: 10MB
                   </p>

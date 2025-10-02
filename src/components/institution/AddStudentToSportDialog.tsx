@@ -10,6 +10,7 @@ import { Loader2, Search, Plus, X, User, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
 import { calculateAge, validateAgeForAgeGroup, getValidAgeGroups } from "@/lib/ageValidation";
+import { SPORTS_GENDER_OPTIONS } from "@/lib/sportsData";
 
 interface AddStudentToSportDialogProps {
   selectedSport?: any;
@@ -71,7 +72,7 @@ const AddStudentToSportDialog = ({ selectedSport, onClose, onSave }: AddStudentT
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [selectedAgeGroup, setSelectedAgeGroup] = useState("");
-  const [selectedGender, setSelectedGender] = useState("Open");
+  const [selectedGender, setSelectedGender] = useState("Male");
   
   const [sportAssignments, setSportAssignments] = useState<SportAssignment[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -338,7 +339,7 @@ const AddStudentToSportDialog = ({ selectedSport, onClose, onSave }: AddStudentT
     setSelectedCategory("");
     setSelectedSubCategory("");
     setSelectedAgeGroup("");
-    setSelectedGender("Open");
+    setSelectedGender("Male");
   };
 
   const handleRemoveAssignment = (index: number) => {
@@ -608,7 +609,7 @@ const AddStudentToSportDialog = ({ selectedSport, onClose, onSave }: AddStudentT
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                     <SelectContent>
-                      {genderOptions.map((gender) => (
+                      {SPORTS_GENDER_OPTIONS.map((gender) => (
                         <SelectItem key={gender} value={gender}>
                           {gender}
                         </SelectItem>

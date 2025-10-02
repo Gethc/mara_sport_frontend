@@ -627,6 +627,15 @@ export const NewInstitutionRegisterPage = () => {
             />
           )}
           
+          {currentStep !== 1 && (
+            <>
+              {console.log("❌ Not rendering InstitutionDetailsStep - currentStep !== 1")}
+              {console.log("currentStep value:", currentStep, "Type:", typeof currentStep)}
+            </>
+          )}
+          
+          {/* Step 2 removed from flow */}
+          
           {/* SportsSubCategoriesStep removed */}
           
           {currentStep === 3 && (
@@ -649,7 +658,7 @@ export const NewInstitutionRegisterPage = () => {
                 instituteId: registrationData.instituteId,
               }}
               onComplete={handleFinalComplete}
-              onBack={() => handleBack(4)}
+              onBack={() => handleBack(3)}
               loading={false}
             />
           )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -69,12 +69,26 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
     selectedSports: initialData?.selectedSports || [] as SelectedSport[],
   });
 
+  // Get gender from personal details (stored in localStorage)
+  const getGenderFromPersonalDetails = () => {
+    try {
+      const savedData = localStorage.getItem('student_registration_data');
+      if (savedData) {
+        const data = JSON.parse(savedData);
+        return data.personalDetails?.gender || "Male";
+      }
+    } catch (error) {
+      console.error('Error parsing saved registration data:', error);
+    }
+    return "Male"; // Default fallback
+  };
+
+  const userGender = getGenderFromPersonalDetails();
+
   const [currentSport, setCurrentSport] = useState("");
   const [currentCategory, setCurrentCategory] = useState("");
   const [currentSubCategory, setCurrentSubCategory] = useState("");
-  const [currentAgeFrom, setCurrentAgeFrom] = useState("");
   const [currentAgeTo, setCurrentAgeTo] = useState("");
-  const [currentGender, setCurrentGender] = useState("Male"); // Default to Male
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -82,7 +96,6 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
   const [sports, setSports] = useState<Sport[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
-  const [genderOptions, setGenderOptions] = useState<GenderOption[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [feeCalculation, setFeeCalculation] = useState<any>(null);
   const [parentPassPricing, setParentPassPricing] = useState<any>(null);
@@ -112,10 +125,11 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
 
   // Load sports when participation type changes
   useEffect(() => {
-    if (formData.participationType) {
+    if (formData.participationType && userGender) {
+      console.log("useEffect triggered - loading sports for:", formData.participationType, userGender);
       loadSports();
     }
-  }, [formData.participationType]);
+  }, [formData.participationType, userGender]);
 
   // Load categories when sport changes
   useEffect(() => {
@@ -136,25 +150,12 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
     }
   }, [currentCategory, currentSport, formData.participationType]);
 
-  // Calculate fees when sports selection changes
-  useEffect(() => {
-    if (formData.selectedSports.length > 0) {
-      calculateFees();
-    } else {
-      setFeeCalculation(null);
-    }
-  }, [formData.selectedSports]);
 
   const loadInitialData = async () => {
     try {
       setLoadingData(true);
-      const [genderResponse] = await Promise.all([
-        apiService.getGenderOptions()
-      ]);
-      
-      if (genderResponse.data && (genderResponse.data as any).success) {
-        setGenderOptions((genderResponse.data as any).data);
-      }
+      // Gender options are now loaded from centralized constants
+      // No need to fetch from API
     } catch (error) {
       console.error("Error loading initial data:", error);
       toast({
@@ -168,7 +169,17 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
   };
 
   const loadSports = async () => {
+    // Prevent multiple simultaneous calls
+    if (isLoading) {
+      console.log("Sports loading already in progress, skipping...");
+      return;
+    }
+
     try {
+      setIsLoading(true);
+      // Clear existing sports to prevent duplicates
+      setSports([]);
+      
       const sportType = formData.participationType === "team" ? "Team" : "Individual";
       const response = await apiService.getSportsPublic(sportType);
       
@@ -176,17 +187,59 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
         const sportsData = (response.data as any).data;
         console.log("Sports data received:", sportsData);
         
+        let allSports = [];
+        
         // Handle both direct array and nested sports array
         if (Array.isArray(sportsData)) {
-          setSports(sportsData);
+          allSports = sportsData;
           console.log("Set sports array with", sportsData.length, "items");
         } else if (sportsData && Array.isArray(sportsData.sports)) {
-          setSports(sportsData.sports);
+          allSports = sportsData.sports;
           console.log("Set sports from nested array with", sportsData.sports.length, "items");
         } else {
           console.error("Unexpected sports data structure:", sportsData);
           setSports([]);
+          return;
         }
+
+        // Backend now handles deduplication, but keep frontend deduplication as backup
+        const sportMap = new Map();
+        allSports.forEach((sport: any) => {
+          if (!sportMap.has(sport.id)) {
+            sportMap.set(sport.id, sport);
+          } else {
+            console.log("Duplicate sport found and removed:", sport.name, "ID:", sport.id);
+          }
+        });
+        
+        const uniqueSports = Array.from(sportMap.values());
+        console.log("Original sports count:", allSports.length);
+        console.log("Unique sports count:", uniqueSports.length);
+
+        // Filter sports based on user gender
+        const filteredSports = uniqueSports.filter((sport: any) => {
+          // If user is male, exclude Netball (female-specific sport)
+          if (userGender === "Male" && sport.name?.toLowerCase() === "netball") {
+            console.log("Filtering out Netball for male student");
+            return false;
+          }
+          return true;
+        });
+
+        // Only update if the sports array is actually different
+        setSports(prevSports => {
+          const isDifferent = prevSports.length !== filteredSports.length || 
+            prevSports.some((sport, index) => sport.id !== filteredSports[index]?.id);
+          
+          if (isDifferent) {
+            console.log("Updating sports array with", filteredSports.length, "items");
+            console.log("Sports names:", filteredSports.map(s => s.name));
+            return filteredSports;
+          } else {
+            console.log("Sports array unchanged, skipping update");
+            return prevSports;
+          }
+        });
       } else {
         console.error("Sports API response not successful:", response.data);
         setSports([]);
@@ -198,6 +251,9 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
         description: "Failed to load sports data. Please try again.",
         variant: "destructive",
       });
+      setSports([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -227,10 +283,13 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
       const selectedCategory = categories.find(c => c.id.toString() === currentCategory);
       
       if (selectedSport && selectedCategory) {
-        const response = await apiService.getSubCategoriesBySport(selectedSport.id, selectedCategory.id);
+        const response = await apiService.getSubCategoriesPublic(selectedSport.id, selectedCategory.id);
         
         if (response.data && (response.data as any).success) {
           setSubCategories((response.data as any).data);
+        } else {
+          // If no sub-categories exist, set empty array (no error needed)
+          setSubCategories([]);
         }
       }
     } catch (error) {
@@ -257,9 +316,9 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
       }
     } catch (error) {
       console.error("Error calculating fees:", error);
-      // Don't show error toast for fee calculation as it's not critical
     }
   };
+
 
   const handleTypeChange = (value: string) => {
     setFormData(prev => ({ 
@@ -270,9 +329,8 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
     setCurrentSport("");
     setCurrentCategory("");
     setCurrentSubCategory("");
-    setCurrentAgeFrom("");
     setCurrentAgeTo("");
-    setCurrentGender("Male");
+    // Gender is now read-only from personal details
     setErrors([]);
   };
 
@@ -287,23 +345,17 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
       return;
     }
 
-    if (!currentAgeFrom || !currentAgeTo) {
-      setErrors(["Please select age range"]);
-      return;
-    }
-
-    if (parseInt(currentAgeFrom) > parseInt(currentAgeTo)) {
-      setErrors(["Age 'From' must be less than or equal to age 'To'"]);
+    if (!currentAgeTo) {
+      setErrors(["Please select age category"]);
       return;
     }
 
     const selectedSport = sports.find(s => s.id.toString() === currentSport);
     const selectedCategory = categories.find(c => c.id.toString() === currentCategory);
     const selectedSubCategory = subCategories.find(sc => sc.id.toString() === currentSubCategory);
-    const selectedGender = genderOptions.find(g => g.value === currentGender);
 
-    if (!selectedSport || !selectedGender) {
-      setErrors(["Invalid sport or gender selection"]);
+    if (!selectedSport) {
+      setErrors(["Invalid sport selection"]);
       return;
     }
 
@@ -312,7 +364,6 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
       item => item.sport_id === selectedSport.id && 
               item.category_id === selectedCategory?.id && 
               item.sub_category_id === selectedSubCategory?.id &&
-              item.ageFrom === currentAgeFrom &&
               item.ageTo === currentAgeTo
     );
 
@@ -328,10 +379,10 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
       category_name: selectedCategory?.name,
       sub_category_id: selectedSubCategory?.id,
       sub_category_name: selectedSubCategory?.name,
-      ageFrom: currentAgeFrom,
+      ageFrom: currentAgeTo, // Keep ageFrom for backward compatibility, but use currentAgeTo value
       ageTo: currentAgeTo,
-      gender: currentGender,
-      gender_label: selectedGender.label,
+      gender: userGender,
+      gender_label: userGender,
       type: formData.participationType
     };
 
@@ -343,9 +394,8 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
     setCurrentSport("");
     setCurrentCategory("");
     setCurrentSubCategory("");
-    setCurrentAgeFrom("");
     setCurrentAgeTo("");
-    setCurrentGender("Male");
+    // Gender is now read-only from personal details
     setErrors([]);
   };
 
@@ -416,12 +466,26 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
     }
   };
 
-  // Generate age options - hardcoded range from 9 to 19
+  // Generate age options based on selected sport's age_from and age_to
   const generateAgeOptions = () => {
-    const options = [];
-    for (let age = 9; age <= 19; age++) {
-      options.push(age.toString());
+    if (!currentSport) {
+      return [];
     }
+    
+    const selectedSport = sports.find(s => s.id.toString() === currentSport);
+    if (!selectedSport || !selectedSport.age_from || !selectedSport.age_to) {
+      return [];
+    }
+    
+    const ageFrom = parseInt(selectedSport.age_from.toString());
+    const ageTo = parseInt(selectedSport.age_to.toString());
+    
+    const options = [];
+    // Generate odd increments starting from age_from
+    for (let age = ageFrom; age <= ageTo; age += 2) {
+      options.push(`Under ${age}`);
+    }
+    
     return options;
   };
 
@@ -507,18 +571,19 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
                 {/* Sport Selection */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Select Sport *</Label>
+                    <Label>Select Sport <span className="text-red-500">*</span></Label>
                     <Select value={currentSport} onValueChange={(value) => {
                       setCurrentSport(value);
                       setCurrentCategory("");
                       setCurrentSubCategory("");
+                      setCurrentAgeTo(""); // Clear age category when sport changes
                     }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Choose sport" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Array.isArray(sports) && sports.map((sport) => (
-                          <SelectItem key={sport.id} value={sport.id.toString()}>
+                        {Array.isArray(sports) && sports.map((sport, index) => (
+                          <SelectItem key={`sport-${sport.id}-${index}`} value={sport.id.toString()}>
                             {sport.name}
                           </SelectItem>
                         ))}
@@ -527,63 +592,31 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
                   </div>
                   
                   <div className="space-y-2">
-                    <Label>Gender *</Label>
-                    <Select value={currentGender} onValueChange={setCurrentGender}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {genderOptions.map((gender) => (
-                          <SelectItem key={gender.value} value={gender.value}>
-                            {gender.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Gender</Label>
+                    <div className="p-3 bg-muted rounded-md">
+                      <span className="text-sm font-medium">{userGender}</span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Gender is taken from your personal details
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Age Range */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Age From *</Label>
-                    <Select value={currentAgeFrom} onValueChange={(value) => {
-                      setCurrentAgeFrom(value);
-                      // Reset age to if it's less than the new age from
-                      if (currentAgeTo && parseInt(value) > parseInt(currentAgeTo)) {
-                        setCurrentAgeTo("");
-                      }
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose age from" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {generateAgeOptions().map((age) => (
-                          <SelectItem key={age} value={age}>
-                            {age} years
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Age To *</Label>
-                    <Select value={currentAgeTo} onValueChange={setCurrentAgeTo}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose age to" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {generateAgeOptions()
-                          .filter(age => !currentAgeFrom || parseInt(age) >= parseInt(currentAgeFrom))
-                          .map((age) => (
-                            <SelectItem key={age} value={age}>
-                              {age} years
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Age */}
+                <div className="space-y-2">
+                  <Label>Age Category <span className="text-red-500">*</span></Label>
+                  <Select value={currentAgeTo} onValueChange={setCurrentAgeTo}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Choose age category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {generateAgeOptions().map((age) => (
+                        <SelectItem key={age} value={age}>
+                          {age}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Category and Sub-Category for Individual Sports */}
@@ -629,7 +662,7 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
                 <div className="flex justify-end">
                   <Button 
                     onClick={addSport}
-                    disabled={!currentSport || !currentAgeFrom || !currentAgeTo}
+                    disabled={!currentSport || !currentAgeTo}
                     className="bg-gradient-primary"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -660,7 +693,7 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
                         <div className="text-sm text-muted-foreground space-y-1">
                           {item.category_name && <div>Category: {item.category_name}</div>}
                           {item.sub_category_name && <div>Sub-Category: {item.sub_category_name}</div>}
-                          <div>Age: {item.ageFrom} - {item.ageTo}</div>
+                          <div>Age Category: {item.ageTo}</div>
                           <div>Gender: {item.gender_label}</div>
                         </div>
                       </div>
@@ -707,7 +740,7 @@ export const SportsSelectionStep = ({ initialData, email, onComplete, onBack }: 
           <Alert>
             <Trophy className="h-4 w-4" />
             <AlertDescription>
-              <strong>Note:</strong> You can participate in both team and individual sports. Switch between "Team Sports" and "Individual Sports" to add different types - your previously selected sports will be preserved. Each additional sport incurs a $25 registration fee.
+              <strong>Note:</strong> You can participate in both team and individual sports. Switch between "Team Sports" and "Individual Sports" to add different types - your previously selected sports will be preserved. 
             </AlertDescription>
           </Alert>
 

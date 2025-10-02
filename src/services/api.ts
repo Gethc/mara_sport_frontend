@@ -230,14 +230,12 @@ class ApiService {
       body: JSON.stringify(studentData),
     });
   }
-
   async createInstitutionStudent(studentData: any) {
     return this.request('/students/institution/students', {
       method: 'POST',
       body: JSON.stringify(studentData),
     });
   }
-
 
   async updateInstitutionStudent(id: number, studentData: any) {
     return this.request(`/students/institution/students/${id}`, {
@@ -393,7 +391,7 @@ class ApiService {
   }
 
   async updateCategory(id: number, categoryData: any) {
-    return this.request(`/categories/${id}`, {
+    return this.request(`/sports/categories/${id}`, {
       method: 'PUT',
       body: JSON.stringify(categoryData),
     });
@@ -401,7 +399,7 @@ class ApiService {
 
   // Sub-categories APIs
   async getSubCategories(categoryId: number) {
-    return this.request(`/categories/${categoryId}/subcategories`);
+    return this.request(`/sports/categories/${categoryId}/subcategories`);
   }
 
   async createSubCategory(subCategoryData: any) {
@@ -412,7 +410,7 @@ class ApiService {
   }
 
   async updateSubCategory(id: number, subCategoryData: any) {
-    return this.request(`/subcategories/${id}`, {
+    return this.request(`/sports/subcategories/${id}`, {
       method: 'PUT',
       body: JSON.stringify(subCategoryData),
     });
@@ -645,38 +643,15 @@ class ApiService {
     return result;
   }
 
+  async getAdminInstitutionSports(institutionId: number) {
+    return this.request(`/admin/institutions/${institutionId}/sports`);
+  }
+
 
   async addSubCategory(sportId: string, subCategoryData: any) {
     return this.request(`/sports/${sportId}/subcategories`, {
       method: 'POST',
       body: JSON.stringify(subCategoryData)
-    });
-  }
-
-
-  async updateCategory(categoryId: string, categoryData: any) {
-    return this.request(`/sports/categories/${categoryId}`, {
-      method: 'PUT',
-      body: JSON.stringify(categoryData)
-    });
-  }
-
-  async deleteCategory(categoryId: string) {
-    return this.request(`/sports/categories/${categoryId}`, {
-      method: 'DELETE'
-    });
-  }
-
-  async updateSubCategory(subCategoryId: string, subCategoryData: any) {
-    return this.request(`/sports/subcategories/${subCategoryId}`, {
-      method: 'PUT',
-      body: JSON.stringify(subCategoryData)
-    });
-  }
-
-  async deleteSubCategory(subCategoryId: string) {
-    return this.request(`/sports/subcategories/${subCategoryId}`, {
-      method: 'DELETE'
     });
   }
 
@@ -770,17 +745,6 @@ class ApiService {
     return this.request(`/sports/${sportId}/students`);
   }
 
-  // Institution Sports Management APIs
-  async getInstitutionSports() {
-    return this.request('/sports/institution/sports');
-  }
-
-  async getInstitutionStudents() {
-    return this.request('/students/institution/students');
-  }
-
-  // Institution Sports Management APIs
-
   async addSportCategory(sportId: string, data: any) {
     return this.request(`/sports/${sportId}/categories`, {
       method: 'POST',
@@ -789,20 +753,20 @@ class ApiService {
   }
 
   async addSportSubCategory(categoryId: string, data: any) {
-    return this.request(`/categories/${categoryId}/subcategories`, {
+    return this.request(`/sports/categories/${categoryId}/subcategories`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async deleteSportCategory(categoryId: string) {
-    return this.request(`/categories/${categoryId}`, {
+    return this.request(`/sports/categories/${categoryId}`, {
       method: 'DELETE',
     });
   }
 
   async deleteSportSubCategory(subCategoryId: string) {
-    return this.request(`/subcategories/${subCategoryId}`, {
+    return this.request(`/sports/subcategories/${subCategoryId}`, {
       method: 'DELETE',
     });
   }
@@ -1046,33 +1010,14 @@ class ApiService {
   }
 
   // Document Upload APIs
-  async uploadDocuments(email: string, studentIdImage?: File, ageProofDocument?: File) {
+  async uploadDocuments(email: string, ageProofDocument?: File) {
     const formData = new FormData();
     formData.append('email', email);
-    if (studentIdImage) formData.append('student_id_image', studentIdImage);
     if (ageProofDocument) formData.append('age_proof_document', ageProofDocument);
     
     return this.request('/documents/upload-documents', {
       method: 'POST',
       body: formData,
-    });
-  }
-
-  // Fee Calculation APIs
-  async calculateTotalFees(calculationData: any) {
-    return this.request('/fee-calculation/calculate-total-fees', {
-      method: 'POST',
-      body: JSON.stringify(calculationData),
-    });
-  }
-
-  async getStudentDocuments(studentId: number) {
-    return this.request(`/documents/${studentId}`);
-  }
-
-  async downloadDocument(studentId: number, documentType: 'id_proof' | 'age_proof') {
-    return this.request(`/documents/${studentId}/download/${documentType}`, {
-      method: 'GET',
     });
   }
 
@@ -1087,20 +1032,6 @@ class ApiService {
 
   async getFeeRulesBySport(sportId: number) {
     return this.request(`/fees/fee-rules/sport/${sportId}`);
-  }
-
-
-  async updateFeeRule(ruleId: number, fee: number) {
-    return this.request(`/fees/fee-rules/${ruleId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ fee }),
-    });
-  }
-
-  async deleteFeeRule(ruleId: number) {
-    return this.request(`/fees/fee-rules/${ruleId}`, {
-      method: 'DELETE',
-    });
   }
 
   async calculateFee(sportId: number, disciplineCount: number) {
@@ -1122,6 +1053,10 @@ class ApiService {
 
   async getCurrentPricing(category: number) {
     return this.request(`/parent-passes/current-pricing?category=${category}`);
+  }
+
+  async getParentPricingSummary() {
+    return this.request('/parent-passes/pricing-summary');
   }
 
   async createParentPass(category: number, amount: number, passType: string, passDate: string) {
@@ -1154,17 +1089,6 @@ class ApiService {
     return this.request('/public/gender-options');
   }
 
-  // Fee Calculation API
-  async calculateTotalFees(data: {
-    selectedSports: { sport_id: number }[];
-    parentCount: number;
-    parentAges?: number[];
-  }) {
-    return this.request('/fee-calculation/calculate-total-fees', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
 
   // OTP Management Methods (Development Only)
   async clearOTPForEmail(email: string) {
@@ -1238,6 +1162,20 @@ class ApiService {
     });
   }
 
+  async calculateTotalFees(calculationData: any) {
+    return this.request('/fee-calculation/calculate-total-fees', {
+      method: 'POST',
+      body: JSON.stringify(calculationData),
+    });
+  }
+
+  async createStudentSponsorship(sponsorshipData: any) {
+    return this.request('/student-sponsorships/', {
+      method: 'POST',
+      body: JSON.stringify(sponsorshipData),
+    });
+  }
+
   async clearRegistrationCheckpoint(email: string) {
     return this.request(`/checkpoint/clear/${email}`, {
       method: 'DELETE',
@@ -1304,17 +1242,6 @@ class ApiService {
     });
   }
 
-  async getInstitutionSports(institutionId: number) {
-    return this.request(`/admin/institutions/${institutionId}/sports`);
-  }
-
-  async getInstitutionStudents(params: { institution_id: number; limit?: number }) {
-    const queryParams = new URLSearchParams();
-    queryParams.append('institution_id', params.institution_id.toString());
-    if (params.limit) queryParams.append('limit', params.limit.toString());
-    
-    return this.request(`/admin/students?${queryParams.toString()}`);
-  }
 
   // Student login methods
   async sendStudentLoginOTP(data: { email: string }) {
@@ -1339,7 +1266,6 @@ class ApiService {
       body: JSON.stringify(profileData),
     });
   }
-
   async addInstitutionSport(sportData: any) {
     return this.request('/admin/institutions/sports', {
       method: 'POST',
@@ -1347,13 +1273,6 @@ class ApiService {
     });
   }
 
-  async getSportCategories(sportId: number) {
-    return this.request(`/admin/sports/${sportId}/categories`);
-  }
-
-  async getSportSubCategories(sportId: number, categoryId: number) {
-    return this.request(`/admin/sports/${sportId}/categories/${categoryId}/subcategories`);
-  }
 
   async addInstitutionStudent(studentData: any) {
     return this.request('/admin/institutions/students', {
@@ -1362,31 +1281,6 @@ class ApiService {
     });
   }
 
-  // Document-related methods
-  async getStudentDocuments(studentId: number) {
-    return this.request(`/documents/documents/${studentId}`);
-  }
-
-  async downloadDocument(studentId: number, documentType: 'id_proof' | 'age_proof') {
-    const url = `${this.baseURL}/documents/documents/${studentId}/download/${documentType}`;
-    const token = localStorage.getItem('authToken');
-    
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to download document: ${response.statusText}`);
-    }
-
-    return response;
-  }
 }
 
 // Create and export a singleton instance

@@ -418,7 +418,7 @@ export const InstitutionDetailsStep = ({
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="institutionType">Institute Type *</Label>
+              <Label htmlFor="institutionType">Institute Type <span className="text-red-500">*</span></Label>
               <Select 
                 value={formData.institutionType} 
                 onValueChange={(value) => {
@@ -440,7 +440,7 @@ export const InstitutionDetailsStep = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="institutionName">Institute Name *</Label>
+              <Label htmlFor="institutionName">Institute Name <span className="text-red-500">*</span></Label>
               {formData.institutionType === "Other" ? (
                 <Input
                   id="institutionName"
@@ -468,7 +468,7 @@ export const InstitutionDetailsStep = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="institutionEmail">Institution Email *</Label>
+            <Label htmlFor="institutionEmail">Institution Email <span className="text-red-500">*</span></Label>
             <div className="flex gap-2">
               <Input
                 id="institutionEmail"
@@ -524,7 +524,7 @@ export const InstitutionDetailsStep = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Phone Number *</Label>
+            <Label htmlFor="phoneNumber">Phone Number <span className="text-red-500">*</span></Label>
             <Input
               id="phoneNumber"
               type="tel"
@@ -557,7 +557,7 @@ export const InstitutionDetailsStep = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="principalName">Principal Name *</Label>
+              <Label htmlFor="principalName">Principal Name <span className="text-red-500">*</span></Label>
               <Input
                 id="principalName"
                 value={formData.principalName}
@@ -600,7 +600,7 @@ export const InstitutionDetailsStep = ({
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="contactPersonName">Name *</Label>
+              <Label htmlFor="contactPersonName">Name <span className="text-red-500">*</span></Label>
               <Input
                 id="contactPersonName"
                 value={formData.contactPersonName}
@@ -610,7 +610,7 @@ export const InstitutionDetailsStep = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="contactPersonDesignation">Designation *</Label>
+              <Label htmlFor="contactPersonDesignation">Designation <span className="text-red-500">*</span></Label>
               <Input
                 id="contactPersonDesignation"
                 value={formData.contactPersonDesignation}
@@ -641,7 +641,7 @@ export const InstitutionDetailsStep = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contactPersonEmail">Email *</Label>
+            <Label htmlFor="contactPersonEmail">Email <span className="text-red-500">*</span></Label>
             
             {/* Same email checkbox */}
             <div className="flex items-center space-x-2">
