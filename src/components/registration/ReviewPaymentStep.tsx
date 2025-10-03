@@ -48,6 +48,8 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
   const { toast } = useToast();
 
   const [feeCalculation, setFeeCalculation] = useState<any>(null);
+  const [parentFees, setParentFees] = useState<number>(0);
+  const [parentFeesLoading, setParentFeesLoading] = useState(false);
 
   const [parentPassPricing, setParentPassPricing] = useState<any>(null);
 
@@ -55,6 +57,11 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
   useEffect(() => {
     loadParentPassPricing();
   }, []);
+
+  // Calculate parent fees when component mounts or registration data changes
+  useEffect(() => {
+    calculateParentFeesAsync();
+  }, [registrationData.parentMedical]);
 
   const loadParentPassPricing = async () => {
     try {
@@ -73,20 +80,75 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
     }
   };
 
-  const calculateParentFees = () => {
+  const calculateParentFeesAsync = async () => {
     const parentMedical = registrationData.parentMedical;
-    if (!parentMedical?.parents?.length) return 0;
+    if (!parentMedical?.parents?.length) {
+      setParentFees(0);
+      return;
+    }
     
-    // Age-based pricing: Under 13 = KES 300, 13+ = KES 500
-    let totalFee = 0;
-    parentMedical.parents.forEach((parent: any) => {
-      if (parent.age < 13) {
-        totalFee += 300;
+    setParentFeesLoading(true);
+    try {
+      // Get current pricing for both categories (0 = under 13, 1 = 13+)
+      const [under13Response, over13Response] = await Promise.all([
+        apiService.getCurrentPricing(0),
+        apiService.getCurrentPricing(1)
+      ]);
+      
+      const under13Data = under13Response.data as any;
+      const over13Data = over13Response.data as any;
+      
+      if (under13Data && under13Data.success && over13Data && over13Data.success) {
+        let totalFee = 0;
+        console.log('🧮 ReviewPaymentStep - Calculating parent fees:');
+        console.log('Parents data:', parentMedical.parents);
+        console.log('Under 13 pricing:', under13Data.data);
+        console.log('Over 13 pricing:', over13Data.data);
+        
+        parentMedical.parents.forEach((parent: any, index: number) => {
+          const age = parseInt(parent.age); // Ensure age is a number
+          if (age < 13) {
+            totalFee += under13Data.data.current_amount;
+            console.log(`Parent ${index + 1}: age=${age}, added KES ${under13Data.data.current_amount} (under 13)`);
+          } else {
+            totalFee += over13Data.data.current_amount;
+            console.log(`Parent ${index + 1}: age=${age}, added KES ${over13Data.data.current_amount} (13+)`);
+          }
+        });
+        
+        console.log(`Total parent fee: KES ${totalFee}`);
+        setParentFees(totalFee);
       } else {
-        totalFee += 500;
+        // Fallback to default pricing if API fails
+        let totalFee = 0;
+        parentMedical.parents.forEach((parent: any) => {
+          if (parent.age < 13) {
+            totalFee += 300;
+          } else {
+            totalFee += 500;
+          }
+        });
+        setParentFees(totalFee);
       }
-    });
-    return totalFee;
+    } catch (error) {
+      console.error("Error loading parent pass pricing:", error);
+      // Fallback to default pricing if API fails
+      let totalFee = 0;
+      parentMedical.parents.forEach((parent: any) => {
+        if (parent.age < 13) {
+          totalFee += 300;
+        } else {
+          totalFee += 500;
+        }
+      });
+      setParentFees(totalFee);
+    } finally {
+      setParentFeesLoading(false);
+    }
+  };
+
+  const calculateParentFees = () => {
+    return parentFees;
   };
 
   const calculateTotal = () => {
@@ -197,10 +259,18 @@ export const ReviewPaymentStep = ({ registrationData, email, onComplete, onBack 
       const response = await apiService.createStudentSponsorship(sponsorshipPayload);
       
       if (response.data && (response.data as any).success) {
+        const responseData = response.data as any;
         toast({
           title: "Sponsorship Request Submitted",
-          description: "Your sponsorship request has been submitted for review.",
+          description: "Your sponsorship request has been submitted for review and a payment request has been created.",
         });
+        
+        // Log the created records for debugging
+        if (responseData.data) {
+          console.log("✅ Sponsorship created:", responseData.data.sponsorship);
+          console.log("✅ Payment request created:", responseData.data.payment_request);
+        }
+        
         onComplete();
       } else {
         throw new Error((response.data as any).message || "Failed to submit sponsorship request");

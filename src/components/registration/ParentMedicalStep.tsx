@@ -56,17 +56,37 @@ export const ParentMedicalStep = ({ initialData, email, registrationData, onComp
   const loadParentPassPricing = async () => {
     setIsLoadingPricing(true);
     try {
-      const response = await apiService.getPricingSummary();
-      const data = response.data as any;
-      if (data && data.success) {
-        setParentPassPricing(data.data);
+      // Get current pricing for both categories (0 = under 13, 1 = 13+)
+      const [under13Response, over13Response] = await Promise.all([
+        apiService.getCurrentPricing(0),
+        apiService.getCurrentPricing(1)
+      ]);
+      
+      const under13Data = under13Response.data as any;
+      const over13Data = over13Response.data as any;
+      
+      if (under13Data && under13Data.success && over13Data && over13Data.success) {
+        setParentPassPricing({
+          0: [{
+            amount: under13Data.data.current_amount,
+            pass_type: under13Data.data.pass_type,
+            pass_date: under13Data.data.pass_date
+          }],
+          1: [{
+            amount: over13Data.data.current_amount,
+            pass_type: over13Data.data.pass_type,
+            pass_date: over13Data.data.pass_date
+          }]
+        });
+      } else {
+        throw new Error("Failed to load current pricing");
       }
     } catch (error) {
       console.error("Error loading parent pass pricing:", error);
       // Fallback to default pricing if API fails
       setParentPassPricing({
-        13: [{ amount: 300, pass_type: "Early Bird" }], // Under 13
-        14: [{ amount: 500, pass_type: "Early Bird" }]  // 13+
+        0: [{ amount: 300, pass_type: "Standard" }], // Under 13
+        1: [{ amount: 500, pass_type: "Standard" }]  // 13+
       });
     } finally {
       setIsLoadingPricing(false);
@@ -167,14 +187,25 @@ export const ParentMedicalStep = ({ initialData, email, registrationData, onComp
     
     // Calculate total parent fees based on current pricing
     let totalFee = 0;
-    formData.parents.forEach(parent => {
-      const category = parent.age < 13 ? 13 : 14; // Under 13 or 13+
+    console.log('🧮 Calculating parent fees:');
+    console.log('Parents data:', formData.parents);
+    console.log('Pricing data:', parentPassPricing);
+    
+    formData.parents.forEach((parent, index) => {
+      const age = parseInt(parent.age); // Ensure age is a number
+      const category = age < 13 ? 0 : 1; // Under 13 or 13+
       const categoryPricing = parentPassPricing[category];
+      
+      console.log(`Parent ${index + 1}: age=${age}, category=${category}, pricing=${categoryPricing}`);
+      
       if (categoryPricing && categoryPricing.length > 0) {
-        // Use the first available pricing (current pricing)
-        totalFee += categoryPricing[0].amount;
+        const amount = categoryPricing[0].amount;
+        totalFee += amount;
+        console.log(`Added KES ${amount} for parent ${index + 1}`);
       }
     });
+    
+    console.log(`Total parent fee: KES ${totalFee}`);
     return totalFee;
   };
 

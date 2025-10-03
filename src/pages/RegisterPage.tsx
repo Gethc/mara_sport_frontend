@@ -849,53 +849,8 @@ const RegisterPage = () => {
               <p className="text-muted-foreground">Please upload the required documents. Files should be clear and readable.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Student ID Image */}
-              <div className="space-y-3">
-                <Label className="text-base font-semibold">Student ID Image *</Label>
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors">
-                  <div className="space-y-3">
-                    <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">Upload a clear photo of your student ID card</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Accepted formats: JPG, PNG, JPEG only. Max size: 10MB
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-center space-x-2">
-                      <Input
-                        type="file"
-                        accept="image/jpeg,image/jpg,image/png"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          handleFileChange("studentIdImage", file);
-                        }}
-                        className="hidden"
-                        id="studentIdImage"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById("studentIdImage")?.click()}
-                        className="h-10"
-                      >
-                        Choose File
-                      </Button>
-                      <span className="text-sm text-muted-foreground">
-                        {files.studentIdImage ? files.studentIdImage.name : "No file chosen"}
-                      </span>
-                    </div>
-                    {formData.documents?.studentIdImage?.filename && (
-                      <div className="flex items-center space-x-2 text-green-600">
-                        <CheckCircle className="h-4 w-4" />
-                        <span className="text-sm">Previously uploaded: {formData.documents.studentIdImage.filename}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Age Proof Document */}
+            {/* Age Proof Document Only */}
+            <div className="max-w-md mx-auto">
               <div className="space-y-3">
                 <Label className="text-base font-semibold">Age Proof Document *</Label>
                 <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors">
@@ -904,13 +859,13 @@ const RegisterPage = () => {
                     <div>
                       <p className="text-sm font-medium">Birth certificate, passport, or similar official document</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Accepted formats: JPG, PNG, JPEG only. Max size: 10MB
+                        Accepted formats: JPG, PNG, JPEG, PDF. Max size: 10MB
                       </p>
                     </div>
                     <div className="flex items-center justify-center space-x-2">
                       <Input
                         type="file"
-                        accept="image/jpeg,image/jpg,image/png"
+                        accept="image/jpeg,image/jpg,image/png,application/pdf"
                         onChange={(e) => {
                           const file = e.target.files?.[0] || null;
                           handleFileChange("ageProofImage", file);

@@ -31,8 +31,8 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
     setErrors([]);
     
     // Validate file size immediately if file is selected
-    if (file && file.size > 500 * 1024) { // 500KB in bytes
-      setErrors(["Age Proof Document must be 500KB or less"]);
+    if (file && file.size > 10 * 1024 * 1024) { // 10MB in bytes
+      setErrors(["Age Proof Document must be 10MB or less"]);
     }
   };
 
@@ -41,24 +41,21 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
     
     if (!files.ageProofDocument) {
       newErrors.push("Age Proof Document is required");
-    } else if (files.ageProofDocument.size > 500 * 1024) { // 500KB in bytes
-      newErrors.push("Age Proof Document must be 500KB or less");
+    } else if (files.ageProofDocument.size > 10 * 1024 * 1024) { // 10MB in bytes
+      newErrors.push("Age Proof Document must be 10MB or less");
     }
     
     // Validate file types
-    if (files.studentIdImage && !isValidImageFile(files.studentIdImage)) {
-      newErrors.push("Student ID Image must be JPG, PNG, or JPEG format");
-    }
-    if (files.ageProofDocument && !isValidImageFile(files.ageProofDocument)) {
-      newErrors.push("Age Proof Document must be JPG, PNG, or JPEG format");
+    if (files.ageProofDocument && !isValidDocumentFile(files.ageProofDocument)) {
+      newErrors.push("Age Proof Document must be JPG, PNG, JPEG, or PDF format");
     }
     
     return newErrors;
   };
 
-  const isValidImageFile = (file: File): boolean => {
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-    const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+  const isValidDocumentFile = (file: File): boolean => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.pdf'];
     
     const hasValidType = allowedTypes.includes(file.type.toLowerCase());
     const hasValidExtension = allowedExtensions.some(ext => 
@@ -147,47 +144,8 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
             </Alert>
           )}
 
-          {/* Adequate spacing between sign card and photo upload */}
-          <div className="space-y-12 mt-8">
-            <div className="border-2 border-dashed border-border rounded-lg p-6 hover:border-primary/50 transition-smooth">
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                    {files.studentIdImage ? (
-                      <CheckCircle className="h-6 w-6 text-accent" />
-                    ) : (
-                      <Upload className="h-6 w-6 text-primary" />
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <Label htmlFor="studentId" className="text-base font-medium cursor-pointer">
-                    Student ID Image *
-                  </Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Upload a clear photo of your student ID card
-                  </p>
-                  <Input
-                    id="studentId"
-                    type="file"
-                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                    onChange={(e) => handleFileChange("studentIdImage", e.target.files?.[0] || null)}
-                    className="mt-3"
-                  />
-                  {files.studentIdImage && (
-                    <div className="mt-2 flex items-center space-x-2 text-sm">
-                      <FileImage className="h-4 w-4 text-accent" />
-                      <span className="text-accent font-medium">{files.studentIdImage.name}</span>
-                      <span className="text-muted-foreground">({formatFileSize(files.studentIdImage.size)})</span>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Accepted formats: JPG, PNG, JPEG only • Max size: 10MB
-                  </p>
-                </div>
-              </div>
-            </div>
-
+          {/* Age Proof Document Upload */}
+          <div className="space-y-6 mt-8">
             <div className="border-2 border-dashed border-border rounded-lg p-6 hover:border-primary/50 transition-smooth">
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
@@ -209,7 +167,7 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
                   <Input
                     id="ageProof"
                     type="file"
-                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
                     onChange={(e) => handleFileChange("ageProofDocument", e.target.files?.[0] || null)}
                     className="mt-3"
                   />
@@ -225,7 +183,7 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Accepted formats: JPG, PNG, JPEG only • Max size: 10MB
+                    Accepted formats: JPG, PNG, JPEG, PDF • Max size: 10MB
                   </p>
                 </div>
               </div>
@@ -237,11 +195,12 @@ export const DocumentUploadStep = ({ initialData, email, onComplete, onBack }: D
             <AlertDescription>
               <strong>Document Guidelines:</strong>
               <ul className="mt-2 space-y-1 text-sm">
-                <li>• Only JPG, PNG, and JPEG files are accepted (PDFs not allowed)</li>
+                <li>• Accepted formats: JPG, PNG, JPEG, and PDF files</li>
                 <li>• Ensure documents are clear and all text is readable</li>
                 <li>• Photos should be well-lit with no shadows or glare</li>
                 <li>• Full document should be visible in the image</li>
                 <li>• Files will be securely stored and only used for verification</li>
+                <li>• Maximum file size: 10MB</li>
               </ul>
             </AlertDescription>
           </Alert>
